@@ -1,0 +1,158 @@
+import React, { useState, useEffect } from 'react';
+import { RefreshCw, Clock, Activity } from 'lucide-react';
+import { format } from 'date-fns';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/Card';
+import Button from '../ui/Button';
+import { getLogs, refreshIndex } from '../../../services/api'
+import { LogEntry } from '../../../types'
+import toast from 'react-hot-toast';
+
+const LogsTab: React.FC = () => {
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchLogs = async () => {
+    setIsLoading(true);
+    try {
+      const data = await getLogs();
+      setLogs(data);
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+      toast.error('Failed to load logs');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const handleRefreshIndex = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshIndex();
+      toast.success('OpenSearch index refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing index:', error);
+      toast.error('Failed to refresh OpenSearch index');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Get icon based on event type
+  const getEventIcon = (event: string) => {
+    if (event.includes('Upload')) return '📤';
+    if (event.includes('Ingestion')) return '📥';
+    if (event.includes('S3')) return '🪣';
+    if (event.includes('Error')) return '⚠️';
+    return '📝';
+  };
+
+  return (
+    <div className="p-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2">
+          <Card>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="flex items-center">
+                <Activity className="mr-2 h-5 w-5" />
+                Recent Logs
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchLogs}
+                isLoading={isLoading}
+                icon={<RefreshCw className="h-4 w-4" />}
+              >
+                Refresh Logs
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
+                </div>
+              ) : logs.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No logs available</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {logs.map((log) => (
+                    <div key={log.id} className="border-l-4 border-blue-500 pl-4 py-2">
+                      <div className="flex items-center text-sm text-gray-500">
+                        <Clock className="mr-1 h-4 w-4" />
+                        <span>
+                          {format(new Date(log.timestamp), 'MMM d, yyyy h:mm:ss a')}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center">
+                        <span className="mr-2 text-lg">{getEventIcon(log.event)}</span>
+                        <h4 className="font-medium text-gray-800">{log.event}</h4>
+                      </div>
+                      <p className="mt-1 text-sm text-gray-600">{log.details}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin Controls</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <h3 className="font-medium text-gray-800 mb-2">OpenSearch Index</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Manually refresh the OpenSearch index to ensure all document changes are searchable.
+                </p>
+                <Button
+                  variant="primary"
+                  onClick={handleRefreshIndex}
+                  isLoading={isRefreshing}
+                  icon={<RefreshCw className="h-4 w-4" />}
+                >
+                  Refresh Index
+                </Button>
+              </div>
+              
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <h3 className="font-medium text-gray-800 mb-2">System Status</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">S3 Bucket:</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Online
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">OpenSearch Cluster:</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Online
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Lambda Functions:</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Online
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LogsTab;
