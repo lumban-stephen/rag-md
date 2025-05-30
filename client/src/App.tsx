@@ -47,7 +47,7 @@ function App() {
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
         
         <main className="flex-grow">
-          <div className="container mx-auto bg-[hsl(var(--background))] p-4 border border-[hsl(var(--border))]">
+          <div className="container mx-auto max-w-7xl bg-[hsl(var(--background))] p-8 border border-[hsl(var(--border))]">
             {renderTabContent()}
           </div>
         </main>
