@@ -1,6 +1,8 @@
 import AWS from 'aws-sdk';
 import { config } from '../../config/env.js';
 import { LoggingService } from '../logging.service.js';
+import { Document, DocumentListResponse } from '../../interfaces/document.types.js';
+import { S3_CONSTANTS } from '../../constants/s3.constants.js';
 
 export class DocumentService {
   private s3: AWS.S3;
@@ -21,8 +23,8 @@ export class DocumentService {
     const params = {
       Bucket: config.aws.s3.bucket!,
       Key: key,
-      Expires: 3600, // URL expires in 1 hour
-      ContentType: 'application/octet-stream'
+      Expires: S3_CONSTANTS.URL_EXPIRY,
+      ContentType: S3_CONSTANTS.CONTENT_TYPES.OCTET_STREAM
     };
 
     try {
@@ -34,7 +36,7 @@ export class DocumentService {
     }
   }
 
-  async listDocuments(topic?: string): Promise<any[]> {
+  async listDocuments(topic?: string): Promise<Document[]> {
     try {
       this.logger.log('S3 List Request', `Listing documents${topic ? ` for topic "${topic}"` : ''}`);
       
@@ -73,12 +75,12 @@ export class DocumentService {
           // Determine if the file is still being processed
           const isProcessing = key.startsWith(config.aws.s3.uploadsPrefix);
 
-          const result = {
+          const result: Document = {
             filename: parts[parts.length - 1] || '',
             topic: parts[1] || '',
             lastModified: object.LastModified?.toISOString() || new Date().toISOString(),
             size: object.Size || 0,
-            status: isProcessing ? 'processing' : 'complete'
+            status: isProcessing ? S3_CONSTANTS.STATUS.PROCESSING : S3_CONSTANTS.STATUS.COMPLETE
           };
           
           return result;
@@ -86,7 +88,7 @@ export class DocumentService {
           this.logger.log('S3 Processing Error', `Error processing object: ${error.message}`);
           return null;
         }
-      }).filter(Boolean);
+      }).filter(Boolean) as Document[];
 
       this.logger.log('S3 List Response', `Found ${processedObjects.length} documents`);
       return processedObjects;
@@ -160,7 +162,7 @@ export class DocumentService {
     const params = {
       Bucket: config.aws.s3.bucket!,
       Key: key,
-      Expires: 3600 // URL expires in 1 hour
+      Expires: S3_CONSTANTS.URL_EXPIRY
     };
 
     try {

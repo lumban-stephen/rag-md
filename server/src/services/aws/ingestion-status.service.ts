@@ -1,6 +1,13 @@
 import AWS from 'aws-sdk';
 import { config } from '../../config/env.js';
 import { LoggingService } from '../logging.service.js';
+import { S3_CONSTANTS } from '../../constants/s3.constants.js';
+
+export interface IngestionStatus {
+  status: 'pending' | 'processing' | 'complete' | 'error';
+  message: string;
+  timestamp?: string;
+}
 
 export class IngestionStatusService {
   private s3: AWS.S3;
@@ -15,11 +22,7 @@ export class IngestionStatusService {
     this.logger = LoggingService.getInstance();
   }
 
-  async checkIngestionStatus(topic: string, filename: string): Promise<{
-    status: 'pending' | 'processing' | 'complete' | 'error';
-    message: string;
-    timestamp?: string;
-  }> {
+  async checkIngestionStatus(topic: string, filename: string): Promise<IngestionStatus> {
     const uploadKey = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
     const processedKey = `${config.aws.s3.processedPrefix}${topic}/${filename}`;
 
@@ -40,7 +43,7 @@ export class IngestionStatusService {
         // If file is in uploads/, it's still being processed
         await this.s3.headObject(uploadParams).promise();
         return {
-          status: 'processing',
+          status: S3_CONSTANTS.STATUS.PROCESSING,
           message: 'File is being processed',
           timestamp: new Date().toISOString()
         };
@@ -49,14 +52,14 @@ export class IngestionStatusService {
         try {
           const processedFile = await this.s3.headObject(processedParams).promise();
           return {
-            status: 'complete',
+            status: S3_CONSTANTS.STATUS.COMPLETE,
             message: 'File has been processed',
             timestamp: processedFile.LastModified?.toISOString()
           };
         } catch (error) {
           // If file is not in either location, it might have failed
           return {
-            status: 'error',
+            status: S3_CONSTANTS.STATUS.ERROR,
             message: 'File not found in either uploads or processed directories'
           };
         }
@@ -64,29 +67,28 @@ export class IngestionStatusService {
     } catch (error) {
       console.error('Error checking ingestion status:', error);
       return {
-        status: 'error',
+        status: S3_CONSTANTS.STATUS.ERROR,
         message: 'Failed to check ingestion status'
       };
     }
   }
 
-  async waitForIngestion(topic: string, filename: string, timeoutMs: number = 300000): Promise<void> {
+  async waitForIngestion(topic: string, filename: string, timeoutMs: number = S3_CONSTANTS.INGESTION_TIMEOUT): Promise<void> {
     const startTime = Date.now();
-    const pollInterval = 10000; // 10 seconds
     
     while (Date.now() - startTime < timeoutMs) {
       const status = await this.checkIngestionStatus(topic, filename);
       
-      if (status.status === 'complete') {
+      if (status.status === S3_CONSTANTS.STATUS.COMPLETE) {
         return;
       }
       
-      if (status.status === 'error') {
+      if (status.status === S3_CONSTANTS.STATUS.ERROR) {
         throw new Error(`Ingestion failed: ${status.message}`);
       }
       
       // Wait before next poll
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      await new Promise(resolve => setTimeout(resolve, S3_CONSTANTS.POLL_INTERVAL));
     }
     
     throw new Error(`Ingestion timed out after ${timeoutMs / 1000} seconds`);

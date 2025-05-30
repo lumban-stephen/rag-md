@@ -2,6 +2,7 @@ import AWS from 'aws-sdk';
 import { config } from '../../config/env.js';
 import { LoggingService } from '../logging.service.js';
 import { DocumentService } from './document.service.js';
+import { S3_CONSTANTS } from '../../constants/s3.constants.js';
 
 export class FileContentService {
   private s3: AWS.S3;
@@ -73,7 +74,7 @@ export class FileContentService {
       Bucket: config.aws.s3.bucket!,
       Key: uploadKey,
       Body: content,
-      ContentType: 'text/plain'
+      ContentType: S3_CONSTANTS.CONTENT_TYPES.TEXT
     };
 
     try {
