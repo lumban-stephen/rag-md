@@ -100,18 +100,41 @@ export class S3Service {
   }
 
   async deleteDocument(topic: string, filename: string): Promise<void> {
-    const key = `${config.aws.s3.processedPrefix}${topic}/${filename}`;
+    const processedKey = `${config.aws.s3.processedPrefix}${topic}/${filename}`;
+    const uploadKey = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
     
-    const params = {
-      Bucket: config.aws.s3.bucket!,
-      Key: key
-    };
-
     try {
-      await this.s3.deleteObject(params).promise();
-    } catch (error) {
-      console.error('Error deleting document:', error);
-      throw new Error('Failed to delete document');
+      // Try to delete from both processed and uploads directories
+      await Promise.all([
+        this.s3.deleteObject({
+          Bucket: config.aws.s3.bucket!,
+          Key: processedKey
+        }).promise(),
+        this.s3.deleteObject({
+          Bucket: config.aws.s3.bucket!,
+          Key: uploadKey
+        }).promise()
+      ]);
+
+      // After deleting the file, check if there are any remaining files in the topic
+      const remainingFiles = await this.listDocuments(topic);
+      
+      if (remainingFiles.length === 0) {
+        // If no files remain, delete the topic directory itself
+        await Promise.all([
+          this.s3.deleteObject({
+            Bucket: config.aws.s3.bucket!,
+            Key: `${config.aws.s3.processedPrefix}${topic}/`
+          }).promise(),
+          this.s3.deleteObject({
+            Bucket: config.aws.s3.bucket!,
+            Key: `${config.aws.s3.uploadsPrefix}${topic}/`
+          }).promise()
+        ]);
+      }
+    } catch (error: any) {
+      this.logger.log('Delete Error', `Failed to delete file "${filename}" from topic "${topic}": ${error.message}`);
+      throw new Error(`Failed to delete document: ${error.message}`);
     }
   }
 

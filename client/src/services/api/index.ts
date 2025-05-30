@@ -172,10 +172,13 @@ export const getDocuments = async (topic?: string): Promise<DocumentsResponse> =
 /**
  * Delete a document
  */
-export const deleteDocument = async (topic: string, filename: string): Promise<boolean> => {
+export const deleteDocument = async (topic: string, filename: string): Promise<{ success: boolean; wasLastFile: boolean }> => {
   try {
-    await api.delete(`/s3/documents/${topic}/${filename}`);
-    return true;
+    const response = await api.delete(`/s3/documents/${topic}/${filename}`);
+    return {
+      success: true,
+      wasLastFile: response.data.wasLastFile
+    };
   } catch (error) {
     console.error('Error deleting document:', error);
     throw error;

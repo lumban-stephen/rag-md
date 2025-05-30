@@ -106,7 +106,16 @@ router.delete('/documents/:topic/:filename', async (req, res) => {
   try {
     const { topic, filename } = req.params;
     await s3Service.deleteDocument(topic, filename);
-    res.json({ message: 'Document deleted successfully' });
+    
+    // Check if there are any remaining files in this topic
+    const remainingFiles = await s3Service.listDocuments(topic);
+    const wasLastFile = remainingFiles.length === 0;
+    
+    res.json({ 
+      message: 'Document deleted successfully',
+      wasLastFile,
+      remainingFiles
+    });
   } catch (error) {
     console.error('Error deleting document:', error);
     res.status(500).json({ error: 'Failed to delete document' });

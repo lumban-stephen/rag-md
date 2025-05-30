@@ -157,9 +157,14 @@ const SearchTab: React.FC = () => {
                   {results.map((result) => (
                     <div key={result.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-medium text-gray-700">
-                          {result.filename}
-                        </h3>
+                        <div className="flex flex-col">
+                          <h3 className="text-sm font-semibold text-blue-600">
+                            Source: {result.filename}
+                          </h3>
+                          <div className="text-xs text-gray-500 mt-1">
+                            File ID: {result.id}
+                          </div>
+                        </div>
                         <div className="flex items-center gap-2">
                           <div className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-800">
                             Confidence: {(result.confidence * 100).toFixed(0)}%
@@ -177,10 +182,13 @@ const SearchTab: React.FC = () => {
                           </button>
                         </div>
                       </div>
-                      <p 
-                        className="text-gray-600 text-sm"
-                        dangerouslySetInnerHTML={{ __html: highlightSearchTerms(result.snippet) }}
-                      ></p>
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-gray-700 mb-1">Content:</p>
+                        <p 
+                          className="text-gray-600 text-sm bg-gray-50 p-3 rounded"
+                          dangerouslySetInnerHTML={{ __html: highlightSearchTerms(result.snippet) }}
+                        ></p>
+                      </div>
                     </div>
                   ))}
                 </div>
