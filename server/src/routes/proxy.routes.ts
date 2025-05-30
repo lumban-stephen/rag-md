@@ -1,10 +1,18 @@
+/**
+ * Proxy Routes
+ * Handles proxying requests to external services (API Gateway)
+ * Includes search and reindexing operations
+ */
 import express from 'express';
 import axios from 'axios';
 
 const router = express.Router();
 const API_GATEWAY_URL = process.env.API_GATEWAY_URL || 'https://r0ts5l6wz4.execute-api.us-east-1.amazonaws.com/dev';
 
-// Proxy search requests to API Gateway
+/**
+ * Proxy search requests to OpenSearch through API Gateway
+ * @route POST /api/proxy/opensearch
+ */
 router.post('/opensearch', async (req, res) => {
   try {
     const { query } = req.body;
@@ -32,7 +40,10 @@ router.post('/opensearch', async (req, res) => {
   }
 });
 
-// Proxy search requests with topic to API Gateway
+/**
+ * Proxy search requests for a specific topic to OpenSearch
+ * @route POST /api/proxy/opensearch/:topic
+ */
 router.post('/opensearch/:topic', async (req, res) => {
   try {
     const { topic } = req.params;
@@ -75,7 +86,11 @@ router.post('/opensearch/:topic', async (req, res) => {
   }
 });
 
-// Proxy reindex requests to API Gateway
+/**
+ * Proxy reindexing requests to API Gateway
+ * Used to update the search index for a document
+ * @route POST /api/proxy/reindex
+ */
 router.post('/reindex', async (req, res) => {
   try {
     const { topic, filename, content } = req.body;

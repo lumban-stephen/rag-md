@@ -1,3 +1,8 @@
+/**
+ * Main Application Component
+ * Handles the overall layout and tab-based navigation of the application
+ * Wraps the entire app in a ProcessingProvider for global state management
+ */
 import React, { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/features/Layout/Header';
@@ -12,8 +17,13 @@ import { Search, FileText, Upload, Loader2, List } from 'lucide-react';
 import { ProcessingProvider } from './contexts/ProcessingContext.js';
 
 function App() {
+  // State to track the currently active tab
   const [activeTab, setActiveTab] = useState('search');
 
+  /**
+   * Renders the content for the currently active tab
+   * @returns The component corresponding to the active tab
+   */
   const renderTabContent = () => {
     switch (activeTab) {
       case 'upload':
@@ -31,6 +41,7 @@ function App() {
     }
   };
 
+  // Configuration for the navigation tabs
   const tabs = [
     { id: 'search', label: 'Search', icon: Search },
     { id: 'documents', label: 'Documents', icon: FileText },
@@ -42,16 +53,23 @@ function App() {
   return (
     <ProcessingProvider>
       <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+        {/* Toast notifications */}
         <Toaster position="top-right" />
+        
+        {/* Application header */}
         <Header />
+        
+        {/* Tab navigation */}
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
         
+        {/* Main content area */}
         <main className="flex-grow">
           <div className="container mx-auto max-w-7xl bg-[hsl(var(--background))] p-8 border border-[hsl(var(--border))]">
             {renderTabContent()}
           </div>
         </main>
         
+        {/* Application footer */}
         <Footer />
       </div>
     </ProcessingProvider>

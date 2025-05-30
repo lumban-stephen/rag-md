@@ -1,3 +1,8 @@
+/**
+ * S3 Routes
+ * Handles all S3-related operations including file uploads, downloads,
+ * content management, and ingestion status checks
+ */
 import { Router } from 'express';
 import { S3Service } from '../../services/aws/s3.service.js';
 import multer from 'multer';
@@ -6,10 +11,14 @@ import { config } from '../../config/env.js';
 const router = Router();
 const s3Service = new S3Service();
 
-// Configure multer for memory storage
+// Configure multer for memory storage of uploaded files
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Upload file through backend
+/**
+ * Upload a file through the backend
+ * Accepts multipart form data with file and metadata
+ * @route POST /api/s3/upload
+ */
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -36,7 +45,10 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-// Generate presigned URL for file upload
+/**
+ * Generate a presigned URL for direct file upload to S3
+ * @route GET /api/s3/generate-url
+ */
 router.get('/generate-url', async (req, res) => {
   try {
     const { topic, filename } = req.query;
@@ -57,7 +69,10 @@ router.get('/generate-url', async (req, res) => {
   }
 });
 
-// Generate presigned URL for file download
+/**
+ * Generate a presigned URL for downloading a processed file
+ * @route GET /api/s3/download-url
+ */
 router.get('/download-url', async (req, res) => {
   try {
     const { topic, filename } = req.query;
@@ -78,7 +93,10 @@ router.get('/download-url', async (req, res) => {
   }
 });
 
-// List all documents
+/**
+ * List all documents across all topics
+ * @route GET /api/s3/documents
+ */
 router.get('/documents', async (req, res) => {
   try {
     const documents = await s3Service.listDocuments();
@@ -89,7 +107,10 @@ router.get('/documents', async (req, res) => {
   }
 });
 
-// List documents by topic
+/**
+ * List documents for a specific topic
+ * @route GET /api/s3/documents/:topic
+ */
 router.get('/documents/:topic', async (req, res) => {
   try {
     const { topic } = req.params;
@@ -101,7 +122,11 @@ router.get('/documents/:topic', async (req, res) => {
   }
 });
 
-// Delete a document
+/**
+ * Delete a specific document
+ * Also checks if it was the last file in the topic
+ * @route DELETE /api/s3/documents/:topic/:filename
+ */
 router.delete('/documents/:topic/:filename', async (req, res) => {
   try {
     const { topic, filename } = req.params;
@@ -122,7 +147,10 @@ router.delete('/documents/:topic/:filename', async (req, res) => {
   }
 });
 
-// Delete multiple documents
+/**
+ * Delete multiple documents in parallel
+ * @route DELETE /api/s3/documents/bulk
+ */
 router.delete('/documents/bulk', async (req, res) => {
   try {
     const { documents } = req.body;
@@ -145,7 +173,11 @@ router.delete('/documents/bulk', async (req, res) => {
   }
 });
 
-// Get file content
+/**
+ * Get the content of a file
+ * Checks both processed and uploads directories
+ * @route GET /api/s3/file-content
+ */
 router.get('/file-content', async (req, res) => {
   try {
     const { topic, filename } = req.query;
@@ -166,7 +198,11 @@ router.get('/file-content', async (req, res) => {
   }
 });
 
-// Update file content
+/**
+ * Update the content of a file
+ * Triggers reprocessing of the document
+ * @route PUT /api/s3/file-content
+ */
 router.put('/file-content', async (req, res) => {
   try {
     const { topic, filename, content } = req.body;
@@ -184,7 +220,10 @@ router.put('/file-content', async (req, res) => {
   }
 });
 
-// Check ingestion status
+/**
+ * Check the ingestion status of a document
+ * @route GET /api/s3/ingestion-status
+ */
 router.get('/ingestion-status', async (req, res) => {
   try {
     const { topic, filename } = req.query;

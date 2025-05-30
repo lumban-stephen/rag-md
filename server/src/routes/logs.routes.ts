@@ -1,10 +1,17 @@
+/**
+ * Logs Routes
+ * Handles log retrieval and management operations
+ */
 import { Router } from 'express';
 import { LoggingService } from '../services/logging.service.js';
 
 const router = Router();
 const loggingService = LoggingService.getInstance();
 
-// Get all logs
+/**
+ * Get all system logs
+ * @route GET /api/logs
+ */
 router.get('/', (req, res) => {
   try {
     const logs = loggingService.getLogs();
@@ -15,7 +22,10 @@ router.get('/', (req, res) => {
   }
 });
 
-// Clear all logs
+/**
+ * Clear all system logs
+ * @route DELETE /api/logs
+ */
 router.delete('/', (req, res) => {
   try {
     loggingService.clearLogs();

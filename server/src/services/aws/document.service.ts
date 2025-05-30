@@ -1,3 +1,7 @@
+/**
+ * DocumentService handles all basic document operations in S3
+ * including listing, uploading, downloading, and deleting documents
+ */
 import AWS from 'aws-sdk';
 import { config } from '../../config/env.js';
 import { LoggingService } from '../logging.service.js';
@@ -9,6 +13,7 @@ export class DocumentService {
   private logger: LoggingService;
 
   constructor() {
+    // Initialize AWS S3 client with credentials from config
     this.s3 = new AWS.S3({
       region: config.aws.region,
       accessKeyId: config.aws.accessKeyId,
@@ -17,6 +22,12 @@ export class DocumentService {
     this.logger = LoggingService.getInstance();
   }
 
+  /**
+   * Generates a presigned URL for uploading a document to S3
+   * @param topic - The topic/category of the document
+   * @param filename - Name of the file to be uploaded
+   * @returns A presigned URL that can be used to upload the file
+   */
   async generatePresignedUrl(topic: string, filename: string): Promise<string> {
     const key = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
     
@@ -24,7 +35,7 @@ export class DocumentService {
       Bucket: config.aws.s3.bucket!,
       Key: key,
       Expires: S3_CONSTANTS.URL_EXPIRY,
-      ContentType: S3_CONSTANTS.CONTENT_TYPES.OCTET_STREAM
+      ContentType: S3_CONSTANTS.CONTENT_TYPES.TEXT
     };
 
     try {
@@ -36,11 +47,17 @@ export class DocumentService {
     }
   }
 
+  /**
+   * Lists all documents in S3, optionally filtered by topic
+   * Searches both processed and uploads directories
+   * @param topic - Optional topic to filter documents by
+   * @returns Array of document metadata including status
+   */
   async listDocuments(topic?: string): Promise<Document[]> {
     try {
       this.logger.log('S3 List Request', `Listing documents${topic ? ` for topic "${topic}"` : ''}`);
       
-      // List both processed and uploads directories
+      // List both processed and uploads directories in parallel
       const [processedResponse, uploadsResponse] = await Promise.all([
         this.s3.listObjectsV2({
           Bucket: config.aws.s3.bucket!,
@@ -62,6 +79,7 @@ export class DocumentService {
         return [];
       }
 
+      // Process and format each object into a Document
       const processedObjects = allObjects.map(object => {
         try {
           const key = object.Key || '';
@@ -76,9 +94,10 @@ export class DocumentService {
           const isProcessing = key.startsWith(config.aws.s3.uploadsPrefix);
 
           const result: Document = {
+            key: object.Key || '',
             filename: parts[parts.length - 1] || '',
             topic: parts[1] || '',
-            lastModified: object.LastModified?.toISOString() || new Date().toISOString(),
+            lastModified: new Date(object.LastModified || new Date()),
             size: object.Size || 0,
             status: isProcessing ? S3_CONSTANTS.STATUS.PROCESSING : S3_CONSTANTS.STATUS.COMPLETE
           };
@@ -98,6 +117,12 @@ export class DocumentService {
     }
   }
 
+  /**
+   * Deletes a document from both processed and uploads directories
+   * Also removes the topic directory if it's the last document
+   * @param topic - The topic of the document
+   * @param filename - Name of the file to delete
+   */
   async deleteDocument(topic: string, filename: string): Promise<void> {
     const processedKey = `${config.aws.s3.processedPrefix}${topic}/${filename}`;
     const uploadKey = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
@@ -137,6 +162,13 @@ export class DocumentService {
     }
   }
 
+  /**
+   * Uploads a file to the uploads directory to trigger processing
+   * @param topic - The topic of the document
+   * @param filename - Name of the file
+   * @param fileBuffer - The file contents as a buffer
+   * @param contentType - MIME type of the file
+   */
   async uploadFile(topic: string, filename: string, fileBuffer: Buffer, contentType: string): Promise<void> {
     const key = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
     
@@ -156,6 +188,12 @@ export class DocumentService {
     }
   }
 
+  /**
+   * Generates a presigned URL for downloading a processed document
+   * @param topic - The topic of the document
+   * @param filename - Name of the file to download
+   * @returns A presigned URL that can be used to download the file
+   */
   async generateDownloadUrl(topic: string, filename: string): Promise<string> {
     const key = `${config.aws.s3.processedPrefix}${topic}/${filename}`;
     

@@ -1,3 +1,9 @@
+/**
+ * UploadTab Component
+ * Provides a user interface for uploading documents to the system
+ * Supports drag-and-drop and manual file selection
+ * Handles file validation, topic management, and upload progress
+ */
 import React, { useState, useEffect } from 'react';
 import { UploadCloud, Check, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/Card';
@@ -7,6 +13,13 @@ import { TopicSelect } from '../ui/Select';
 import { generateUploadUrl, uploadFile, getDocuments } from '../../../services/api';
 import toast from 'react-hot-toast';
 
+/**
+ * Represents a document in the system
+ * @property topic - Category/topic of the document
+ * @property filename - Name of the file
+ * @property lastModified - Last modification timestamp
+ * @property size - File size in bytes
+ */
 interface Document {
   topic: string;
   filename: string;
@@ -14,11 +27,16 @@ interface Document {
   size: number;
 }
 
+/**
+ * Response from the documents API
+ * @property documents - Array of documents
+ */
 interface DocumentsResponse {
   documents: Document[];
 }
 
 const UploadTab: React.FC = () => {
+  // State management for form fields and upload process
   const [topic, setTopic] = useState('');
   const [filename, setFilename] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -27,6 +45,7 @@ const UploadTab: React.FC = () => {
   const [topics, setTopics] = useState<{ value: string; label: string }[]>([]);
   const [isLoadingTopics, setIsLoadingTopics] = useState(true);
 
+  // Accepted file types and MIME types for validation
   const acceptedFileTypes = '.pdf,.txt,.md';
   const acceptedMimeTypes = [
     'application/pdf',
@@ -35,8 +54,11 @@ const UploadTab: React.FC = () => {
     'text/x-markdown'
   ];
 
+  /**
+   * Fetches existing topics when component mounts
+   * Updates the topics list with unique, sorted values
+   */
   useEffect(() => {
-    // Fetch existing topics when component mounts
     const fetchTopics = async () => {
       console.log('Starting to fetch topics...');
       setIsLoadingTopics(true);
@@ -65,6 +87,11 @@ const UploadTab: React.FC = () => {
     fetchTopics();
   }, []);
 
+  /**
+   * Adds a new topic to the list
+   * Validates for duplicates and maintains alphabetical order
+   * @param newTopic - The new topic to add
+   */
   const handleAddTopic = (newTopic: string) => {
     console.log('Adding new topic:', newTopic);
     // Check if topic already exists
@@ -83,6 +110,12 @@ const UploadTab: React.FC = () => {
     toast.success(`Added new topic: ${newTopic}`);
   };
 
+  /**
+   * Validates a file before upload
+   * Checks file type and MIME type
+   * @param file - The file to validate
+   * @returns Whether the file is valid
+   */
   const validateFile = (file: File): boolean => {
     // Check if file is an image
     if (file.type.startsWith('image/')) {
@@ -99,6 +132,11 @@ const UploadTab: React.FC = () => {
     return true;
   };
 
+  /**
+   * Handles file selection from input
+   * Validates file and updates state
+   * @param e - Change event from file input
+   */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFile = e.target.files[0];
@@ -116,11 +154,20 @@ const UploadTab: React.FC = () => {
     }
   };
 
+  /**
+   * Handles drag over event for file drop zone
+   * Prevents default browser behavior
+   */
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
+  /**
+   * Handles file drop event
+   * Validates dropped file and updates state
+   * @param e - Drop event from drop zone
+   */
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -138,10 +185,17 @@ const UploadTab: React.FC = () => {
     }
   };
 
+  /**
+   * Triggers file input click when upload area is clicked
+   */
   const handleUploadAreaClick = () => {
     document.getElementById('file-upload')?.click();
   };
 
+  /**
+   * Handles file upload process
+   * Validates form fields, shows progress, and handles success/error states
+   */
   const handleUpload = async () => {
     if (!topic || !filename || !file) {
       toast.error('Please fill all fields and select a file');
@@ -195,6 +249,7 @@ const UploadTab: React.FC = () => {
             <CardTitle>Upload Document</CardTitle>
           </CardHeader>
           <CardContent className="flex-grow">
+            {/* Topic selection with ability to add new topics */}
             <TopicSelect
               label="Topic"
               topics={topics}
@@ -205,6 +260,7 @@ const UploadTab: React.FC = () => {
               disabled={isLoadingTopics}
             />
             
+            {/* Filename input */}
             <Input
               label="Filename"
               placeholder="Enter a filename or use the original filename"
@@ -213,6 +269,7 @@ const UploadTab: React.FC = () => {
               fullWidth
             />
             
+            {/* File upload area with drag and drop support */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 File
@@ -244,6 +301,7 @@ const UploadTab: React.FC = () => {
                   onChange={handleFileChange}
                 />
               </div>
+              {/* Selected file indicator */}
               {file && (
                 <div className="mt-2 flex items-center text-sm text-gray-500">
                   <Check className="h-4 w-4 text-green-500 mr-1" />
@@ -277,15 +335,15 @@ const UploadTab: React.FC = () => {
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex justify-end">
+          <CardFooter>
+            {/* Upload button with progress indicator */}
             <Button
               variant="primary"
               onClick={handleUpload}
               isLoading={isUploading}
-              disabled={!topic || !filename || !file || isUploading || isLoadingTopics}
-              icon={<UploadCloud className="h-4 w-4" />}
+              disabled={!topic || !filename || !file || isUploading}
             >
-              Upload File
+              {isUploading ? `Uploading... ${Math.round(uploadProgress)}%` : 'Upload'}
             </Button>
           </CardFooter>
         </Card>

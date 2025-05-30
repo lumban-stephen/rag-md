@@ -1,3 +1,8 @@
+/**
+ * FileContentService handles reading and updating file contents in S3
+ * It manages both processed and unprocessed files, with proper error handling
+ * and logging for file operations
+ */
 import AWS from 'aws-sdk';
 import { config } from '../../config/env.js';
 import { LoggingService } from '../logging.service.js';
@@ -10,6 +15,7 @@ export class FileContentService {
   private documentService: DocumentService;
 
   constructor() {
+    // Initialize AWS S3 client and required services
     this.s3 = new AWS.S3({
       region: config.aws.region,
       accessKeyId: config.aws.accessKeyId,
@@ -19,6 +25,14 @@ export class FileContentService {
     this.documentService = new DocumentService();
   }
 
+  /**
+   * Retrieves the content of a file from either processed or uploads directory
+   * First checks the processed directory, then falls back to uploads if not found
+   * @param topic - The topic of the document
+   * @param filename - Name of the file to read
+   * @returns The file contents as a string
+   * @throws Error if file is not found in either directory
+   */
   async getFileContent(topic: string, filename: string): Promise<string> {
     // Try processed directory first
     const processedKey = `${config.aws.s3.processedPrefix}${topic}/${filename}`;
@@ -67,6 +81,14 @@ export class FileContentService {
     }
   }
 
+  /**
+   * Updates the content of a file and triggers reprocessing
+   * First deletes the existing file to clear old index entries,
+   * then uploads the new content to trigger ingestion
+   * @param topic - The topic of the document
+   * @param filename - Name of the file to update
+   * @param content - New content for the file
+   */
   async updateFileContent(topic: string, filename: string, content: string): Promise<void> {
     const uploadKey = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
     

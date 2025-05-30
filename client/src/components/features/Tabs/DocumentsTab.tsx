@@ -1,3 +1,12 @@
+/**
+ * DocumentsTab Component
+ * Provides a comprehensive interface for managing documents including:
+ * - Viewing, editing, and deleting documents
+ * - Filtering by topic and searching
+ * - Sorting and pagination
+ * - Bulk operations
+ * - Processing status tracking
+ */
 import React, { useState, useEffect } from 'react';
 import { Trash2, RefreshCw, AlertCircle, ArrowUpDown, Download, Edit2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -11,6 +20,15 @@ import toast from 'react-hot-toast';
 import Input from '../ui/Input.js';
 import { useProcessing } from '../../../contexts/ProcessingContext.js';
 
+/**
+ * Represents a document in the system
+ * @property filename - Name of the file
+ * @property topic - Category/topic of the document
+ * @property lastModified - Last modification timestamp
+ * @property size - File size in bytes
+ * @property content - Optional file content for editing
+ * @property ingestionStatus - Optional processing status information
+ */
 interface Document {
   filename: string;
   topic: string;
@@ -27,6 +45,15 @@ interface Document {
 type SortField = 'filename' | 'topic' | 'lastModified' | 'size';
 type SortDirection = 'asc' | 'desc';
 
+/**
+ * Props for the EditModal component
+ * @property isOpen - Whether the modal is visible
+ * @property onClose - Function to close the modal
+ * @property onSave - Function to save changes
+ * @property initialContent - Initial content to display
+ * @property filename - Name of the file being edited
+ * @property isViewOnly - Whether the modal is in view-only mode
+ */
 interface EditModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -36,6 +63,14 @@ interface EditModalProps {
   isViewOnly?: boolean;
 }
 
+/**
+ * Represents a processing notification
+ * @property topic - Document topic
+ * @property filename - Name of the file
+ * @property status - Current processing status
+ * @property message - Status message
+ * @property timestamp - When the status was last updated
+ */
 interface ProcessingNotification {
   topic: string;
   filename: string;
@@ -44,6 +79,10 @@ interface ProcessingNotification {
   timestamp?: string;
 }
 
+/**
+ * Modal component for editing or viewing document content
+ * Includes confirmation for saving changes and view-only mode
+ */
 const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialContent, filename, isViewOnly = false }) => {
   const [content, setContent] = useState(initialContent);
   const [isSaving, setIsSaving] = useState(false);
@@ -145,6 +184,10 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialC
   );
 };
 
+/**
+ * Notification component for displaying document processing status
+ * Shows progress, completion, or error states with appropriate icons
+ */
 const ProcessingNotification: React.FC<{
   notification: ProcessingNotification;
   onClose: () => void;
@@ -183,7 +226,12 @@ const ProcessingNotification: React.FC<{
   );
 };
 
+/**
+ * Main DocumentsTab component
+ * Manages the document list, filtering, sorting, and operations
+ */
 const DocumentsTab: React.FC = () => {
+  // State management for documents and UI
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTopic, setSelectedTopic] = useState('');
@@ -207,6 +255,10 @@ const DocumentsTab: React.FC = () => {
   const [processingNotifications, setProcessingNotifications] = useState<ProcessingNotification[]>([]);
   const { addJob } = useProcessing();
 
+  /**
+   * Fetches documents from the API
+   * Updates the document list and available topics
+   */
   const fetchDocuments = async () => {
     setIsLoading(true);
     try {
@@ -233,6 +285,7 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  // Fetch documents when topic changes
   useEffect(() => {
     fetchDocuments();
   }, [selectedTopic]);
@@ -242,12 +295,20 @@ const DocumentsTab: React.FC = () => {
     setCurrentPage(1);
   }, [selectedTopic]);
 
+  /**
+   * Initiates the document deletion process
+   * Shows confirmation modal for single document deletion
+   */
   const handleDelete = async (topic: string, filename: string) => {
     setDeleteType('single');
     setDocumentToDelete({ topic, filename });
     setShowDeleteModal(true);
   };
 
+  /**
+   * Initiates bulk document deletion
+   * Shows confirmation modal for multiple document deletion
+   */
   const handleBulkDelete = () => {
     if (selectedDocuments.size === 0) {
       toast.error('Please select documents to delete');
@@ -264,6 +325,10 @@ const DocumentsTab: React.FC = () => {
     setShowDeleteModal(true);
   };
 
+  /**
+   * Executes the actual document deletion
+   * Handles both single and bulk deletions
+   */
   const executeDelete = async () => {
     if (deleteType === 'single' && documentToDelete) {
       setIsDeleting(documentToDelete.filename);
@@ -336,6 +401,10 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  /**
+   * Toggles selection of a single document
+   * Updates the selectedDocuments set
+   */
   const toggleDocumentSelection = (topic: string, filename: string) => {
     const key = `${topic}/${filename}`;
     const newSelected = new Set(selectedDocuments);
@@ -347,6 +416,10 @@ const DocumentsTab: React.FC = () => {
     setSelectedDocuments(newSelected);
   };
 
+  /**
+   * Toggles selection of all documents
+   * Selects or deselects all documents based on current state
+   */
   const toggleSelectAll = () => {
     if (selectedDocuments.size === documents.length) {
       setSelectedDocuments(new Set());
@@ -357,6 +430,11 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  /**
+   * Formats file size in bytes to human-readable format
+   * @param bytes - File size in bytes
+   * @returns Formatted size string (e.g., "1.5 MB")
+   */
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -365,6 +443,11 @@ const DocumentsTab: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  /**
+   * Formats date string to readable format
+   * @param dateString - ISO date string
+   * @returns Formatted date string
+   */
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -378,6 +461,11 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  /**
+   * Handles sorting of documents
+   * Toggles sort direction if same field is clicked
+   * @param field - Field to sort by
+   */
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -387,6 +475,10 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  /**
+   * Filters and sorts documents based on current criteria
+   * @returns Filtered and sorted document array
+   */
   const getFilteredAndSortedDocuments = () => {
     const filteredDocs = documents.filter(doc => 
       doc.filename.toLowerCase().includes(searchQuery.toLowerCase())
@@ -414,6 +506,10 @@ const DocumentsTab: React.FC = () => {
     });
   };
 
+  /**
+   * Handles document download
+   * Generates download URL and triggers download
+   */
   const handleDownload = async (topic: string, filename: string) => {
     try {
       const url = await getDownloadUrl(topic, filename);
@@ -445,6 +541,10 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  /**
+   * Polls the ingestion status of a document
+   * Updates status and shows notifications
+   */
   const pollIngestionStatus = async (topic: string, filename: string) => {
     try {
       const status = await checkIngestionStatus(topic, filename);
@@ -481,6 +581,10 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  /**
+   * Handles document editing
+   * Fetches content and shows edit modal
+   */
   const handleEdit = async (topic: string, filename: string, content: string) => {
     try {
       await updateFileContent(topic, filename, content);
@@ -498,6 +602,10 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  /**
+   * Initiates document editing
+   * Fetches content and opens edit modal
+   */
   const handleEditClick = async (topic: string, filename: string) => {
     try {
       const content = await getFileContent(topic, filename);
@@ -509,6 +617,10 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  /**
+   * Saves edited document content
+   * Updates content and shows success notification
+   */
   const handleSaveContent = async (content: string) => {
     if (!editingFile) return;
 
@@ -533,6 +645,11 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  /**
+   * Gets the appropriate icon for ingestion status
+   * @param status - Current ingestion status
+   * @returns Icon component for the status
+   */
   const getIngestionStatusIcon = (status?: Document['ingestionStatus']) => {
     if (!status) return null;
     
@@ -548,6 +665,10 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  /**
+   * Gets paginated documents for current page
+   * @returns Array of documents for current page
+   */
   const getPaginatedDocuments = () => {
     const sortedDocs = getFilteredAndSortedDocuments();
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -556,12 +677,20 @@ const DocumentsTab: React.FC = () => {
 
   const totalPages = Math.ceil(getFilteredAndSortedDocuments().length / rowsPerPage);
 
+  /**
+   * Handles page change in pagination
+   * @param page - New page number
+   */
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     // Reset selection when changing pages
     setSelectedDocuments(new Set());
   };
 
+  /**
+   * Handles document viewing
+   * Opens document in view-only mode
+   */
   const handleViewClick = async (topic: string, filename: string) => {
     try {
       // Add the job to processing context
@@ -583,6 +712,10 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
+  /**
+   * Removes a processing notification
+   * @param filename - Name of the file to remove notification for
+   */
   const removeNotification = (filename: string) => {
     setProcessingNotifications(prev => 
       prev.filter(n => n.filename !== filename)

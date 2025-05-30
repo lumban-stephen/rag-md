@@ -1,3 +1,8 @@
+/**
+ * IngestionStatusService manages the status of document ingestion in S3
+ * It tracks whether documents are in the uploads directory (pending ingestion)
+ * or in the processed directory (ingestion complete)
+ */
 import AWS from 'aws-sdk';
 import { config } from '../../config/env.js';
 import { LoggingService } from '../logging.service.js';
@@ -14,12 +19,69 @@ export class IngestionStatusService {
   private logger: LoggingService;
 
   constructor() {
+    // Initialize AWS S3 client and logging service
     this.s3 = new AWS.S3({
       region: config.aws.region,
       accessKeyId: config.aws.accessKeyId,
       secretAccessKey: config.aws.secretAccessKey
     });
     this.logger = LoggingService.getInstance();
+  }
+
+  /**
+   * Checks if a document is still in the uploads directory (pending ingestion)
+   * @param topic - The topic of the document
+   * @param filename - Name of the file to check
+   * @returns True if the file is still in uploads (pending), false if it's been processed
+   */
+  async isPendingIngestion(topic: string, filename: string): Promise<boolean> {
+    const uploadKey = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
+    
+    try {
+      // Check if file exists in uploads directory
+      await this.s3.headObject({
+        Bucket: config.aws.s3.bucket!,
+        Key: uploadKey
+      }).promise();
+      
+      this.logger.log('Ingestion Status', `File ${filename} is still pending ingestion`);
+      return true;
+    } catch (error: any) {
+      if (error.code === 'NotFound') {
+        this.logger.log('Ingestion Status', `File ${filename} has been processed`);
+        return false;
+      }
+      this.logger.log('Ingestion Status Error', `Error checking ingestion status: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Checks if a document has been processed and is in the processed directory
+   * @param topic - The topic of the document
+   * @param filename - Name of the file to check
+   * @returns True if the file is in processed directory, false otherwise
+   */
+  async isProcessed(topic: string, filename: string): Promise<boolean> {
+    const processedKey = `${config.aws.s3.processedPrefix}${topic}/${filename}`;
+    
+    try {
+      // Check if file exists in processed directory
+      await this.s3.headObject({
+        Bucket: config.aws.s3.bucket!,
+        Key: processedKey
+      }).promise();
+      
+      this.logger.log('Ingestion Status', `File ${filename} has been processed`);
+      return true;
+    } catch (error: any) {
+      if (error.code === 'NotFound') {
+        this.logger.log('Ingestion Status', `File ${filename} has not been processed`);
+        return false;
+      }
+      this.logger.log('Ingestion Status Error', `Error checking processing status: ${error.message}`);
+      throw error;
+    }
   }
 
   async checkIngestionStatus(topic: string, filename: string): Promise<IngestionStatus> {
