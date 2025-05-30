@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, RefreshCw, AlertCircle, ArrowUpDown, Download, Edit2 } from 'lucide-react';
+import { Trash2, RefreshCw, AlertCircle, ArrowUpDown, Download, Edit2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card.js';
 import Button from '../ui/Button.js';
@@ -9,6 +9,7 @@ import ConfirmationModal from '../ui/ConfirmationModal.js';
 import { getDocuments, deleteDocument, deleteDocuments, getDownloadUrl, getFileContent, updateFileContent, checkIngestionStatus } from '../../../services/api/index.js';
 import toast from 'react-hot-toast';
 import Input from '../ui/Input.js';
+import { useProcessing } from '../../../contexts/ProcessingContext.js';
 
 interface Document {
   filename: string;
@@ -32,9 +33,18 @@ interface EditModalProps {
   onSave: (content: string) => Promise<void>;
   initialContent: string;
   filename: string;
+  isViewOnly?: boolean;
 }
 
-const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialContent, filename }) => {
+interface ProcessingNotification {
+  topic: string;
+  filename: string;
+  status: 'pending' | 'processing' | 'complete' | 'error';
+  message: string;
+  timestamp?: string;
+}
+
+const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialContent, filename, isViewOnly = false }) => {
   const [content, setContent] = useState(initialContent);
   const [isSaving, setIsSaving] = useState(false);
   const [showConfirmSave, setShowConfirmSave] = useState(false);
@@ -47,11 +57,17 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialC
   }, [initialContent]);
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (isViewOnly) return;
     setContent(e.target.value);
     setHasChanges(true);
   };
 
   const handleSave = async () => {
+    if (isViewOnly) {
+      onClose();
+      return;
+    }
+
     if (!hasChanges) {
       onClose();
       return;
@@ -64,11 +80,13 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialC
 
     setIsSaving(true);
     try {
-      await onSave(content);
+      // Start the save process but don't wait for it
+      onSave(content).catch(error => {
+        console.error('Error saving file:', error);
+        toast.error('Failed to save changes');
+      });
+      // Close immediately
       onClose();
-    } catch (error) {
-      console.error('Error saving file:', error);
-      toast.error('Failed to save changes');
     } finally {
       setIsSaving(false);
     }
@@ -86,32 +104,35 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialC
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg p-6 w-[80vw] h-[80vh] flex flex-col">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Edit {filename}</h2>
+          <h2 className="text-xl font-semibold">{isViewOnly ? 'View' : 'Edit'} {filename}</h2>
           <Button variant="ghost" onClick={handleCancel}>×</Button>
         </div>
         <div className="flex-grow overflow-auto mb-4">
           <textarea
             value={content}
             onChange={handleContentChange}
-            className="w-full h-full min-h-[400px] p-4 border rounded-lg font-mono text-sm"
+            className={`w-full h-full min-h-[400px] p-4 border rounded-lg font-mono text-sm ${isViewOnly ? 'bg-gray-50 cursor-default' : ''}`}
             spellCheck="false"
+            readOnly={isViewOnly}
           />
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={handleCancel}>
-            {showConfirmSave ? 'Back to Editing' : 'Cancel'}
+            {isViewOnly ? 'Close' : (showConfirmSave ? 'Back to Editing' : 'Cancel')}
           </Button>
-          <Button
-            variant={showConfirmSave ? "danger" : "primary"}
-            onClick={handleSave}
-            isLoading={isSaving}
-          >
-            {showConfirmSave ? 'Confirm Save' : 'Save Changes'}
-          </Button>
+          {!isViewOnly && (
+            <Button
+              variant={showConfirmSave ? "danger" : "primary"}
+              onClick={handleSave}
+              isLoading={isSaving}
+            >
+              {showConfirmSave ? 'Confirm Save' : 'Save Changes'}
+            </Button>
+          )}
         </div>
-        {showConfirmSave && (
+        {!isViewOnly && showConfirmSave && (
           <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800">
               You are about to update the RAG content. This will affect future search results.
@@ -119,6 +140,44 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialC
             </p>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+const ProcessingNotification: React.FC<{
+  notification: ProcessingNotification;
+  onClose: () => void;
+}> = ({ notification, onClose }) => {
+  return (
+    <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 border border-gray-200 w-80">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <h4 className="font-medium text-gray-900">{notification.filename}</h4>
+          <p className="text-sm text-gray-500 mt-1">{notification.message}</p>
+          <div className="mt-2 flex items-center gap-2">
+            {notification.status === 'processing' && (
+              <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+            )}
+            {notification.status === 'complete' && (
+              <span className="text-green-500">✅</span>
+            )}
+            {notification.status === 'error' && (
+              <span className="text-red-500">❌</span>
+            )}
+            <span className="text-sm text-gray-500">
+              {notification.status === 'processing' ? 'Processing...' : 
+               notification.status === 'complete' ? 'Complete' : 
+               notification.status === 'error' ? 'Error' : 'Pending'}
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-500"
+        >
+          ×
+        </button>
       </div>
     </div>
   );
@@ -144,6 +203,9 @@ const DocumentsTab: React.FC = () => {
   const [ingestionStatuses, setIngestionStatuses] = useState<Record<string, Document['ingestionStatus']>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
+  const [isViewOnly, setIsViewOnly] = useState(false);
+  const [processingNotifications, setProcessingNotifications] = useState<ProcessingNotification[]>([]);
+  const { addJob } = useProcessing();
 
   const fetchDocuments = async () => {
     setIsLoading(true);
@@ -173,6 +235,11 @@ const DocumentsTab: React.FC = () => {
 
   useEffect(() => {
     fetchDocuments();
+  }, [selectedTopic]);
+
+  // Reset pagination when topic changes
+  useEffect(() => {
+    setCurrentPage(1);
   }, [selectedTopic]);
 
   const handleDelete = async (topic: string, filename: string) => {
@@ -378,40 +445,53 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
-  const pollIngestionStatus = async (topic: string, filename: string): Promise<Document['ingestionStatus'] | null> => {
+  const pollIngestionStatus = async (topic: string, filename: string) => {
     try {
       const status = await checkIngestionStatus(topic, filename);
-      if (status) {
-        setIngestionStatuses(prev => ({
-          ...prev,
-          [`${topic}/${filename}`]: status
-        }));
+      
+      // Update the notification
+      setProcessingNotifications(prev => {
+        const existing = prev.find(n => n.filename === filename);
+        if (existing) {
+          return prev.map(n => 
+            n.filename === filename 
+              ? { ...n, ...status }
+              : n
+          );
+        }
+        return [...prev, { topic, filename, ...status }];
+      });
+
+      // If still processing, continue polling
+      if (status.status === 'processing') {
+        setTimeout(() => pollIngestionStatus(topic, filename), 5000);
+      } else if (status.status === 'complete') {
+        // Refresh the documents list after successful processing
+        fetchDocuments();
       }
-      return status;
     } catch (error) {
-      console.error('Error checking ingestion status:', error);
-      return null;
+      console.error('Error polling ingestion status:', error);
+      setProcessingNotifications(prev => 
+        prev.map(n => 
+          n.filename === filename 
+            ? { ...n, status: 'error', message: 'Failed to check status' }
+            : n
+        )
+      );
     }
   };
 
   const handleEdit = async (topic: string, filename: string, content: string) => {
     try {
       await updateFileContent(topic, filename, content);
-      // Start polling for ingestion status
-      const pollInterval = setInterval(async () => {
-        const status = await pollIngestionStatus(topic, filename);
-        if (status?.status === 'complete' || status?.status === 'error') {
-          clearInterval(pollInterval);
-          if (status.status === 'complete') {
-            toast.success('Document updated and indexed successfully');
-          } else {
-            toast.error(`Document update failed: ${status.message}`);
-          }
-        }
-      }, 5000); // Check every 5 seconds
-
-      // Stop polling after 5 minutes
-      setTimeout(() => clearInterval(pollInterval), 300000);
+      // Add the job to processing context
+      addJob({
+        topic,
+        filename,
+        status: 'processing',
+        message: 'Updating document...',
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
       console.error('Error updating document:', error);
       toast.error('Failed to update document');
@@ -431,10 +511,26 @@ const DocumentsTab: React.FC = () => {
 
   const handleSaveContent = async (content: string) => {
     if (!editingFile) return;
-    await handleEdit(editingFile.topic, editingFile.filename, content);
-    setShowEditModal(false);
-    setEditingFile(null);
-    fetchDocuments();
+
+    try {
+      // Add job to processing context
+      addJob({
+        topic: editingFile.topic,
+        filename: editingFile.filename,
+        status: 'processing',
+        message: 'Updating document...',
+        timestamp: new Date().toISOString()
+      });
+
+      await updateFileContent(editingFile.topic, editingFile.filename, content);
+      toast.success('Document updated successfully');
+      setShowEditModal(false);
+      setEditingFile(null);
+      fetchDocuments();
+    } catch (error) {
+      console.error('Error updating document:', error);
+      toast.error('Failed to update document');
+    }
   };
 
   const getIngestionStatusIcon = (status?: Document['ingestionStatus']) => {
@@ -464,6 +560,33 @@ const DocumentsTab: React.FC = () => {
     setCurrentPage(page);
     // Reset selection when changing pages
     setSelectedDocuments(new Set());
+  };
+
+  const handleViewClick = async (topic: string, filename: string) => {
+    try {
+      // Add the job to processing context
+      addJob({
+        topic,
+        filename,
+        status: 'processing',
+        message: 'Checking file status...',
+        timestamp: new Date().toISOString()
+      });
+
+      const content = await getFileContent(topic, filename);
+      setEditingFile({ topic, filename, content });
+      setIsViewOnly(true);
+      setShowEditModal(true);
+    } catch (error) {
+      console.error('Error getting file content:', error);
+      toast.error(`Failed to open "${filename}" for viewing`);
+    }
+  };
+
+  const removeNotification = (filename: string) => {
+    setProcessingNotifications(prev => 
+      prev.filter(n => n.filename !== filename)
+    );
   };
 
   return (
@@ -587,9 +710,19 @@ const DocumentsTab: React.FC = () => {
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        <div className="flex items-center">
-                          <span>{doc.filename}</span>
-                          {getIngestionStatusIcon(ingestionStatuses[`${doc.topic}/${doc.filename}`])}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleViewClick(doc.topic, doc.filename)}
+                            className="text-blue-600 hover:text-blue-800 hover:underline focus:outline-none"
+                          >
+                            {doc.filename}
+                          </button>
+                          {doc.ingestionStatus?.status === 'processing' && (
+                            <span className="text-yellow-500" title="Document is being processed">⏳</span>
+                          )}
+                          {doc.ingestionStatus?.status === 'complete' && (
+                            <span className="text-green-500" title="Document is ready">✅</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -697,11 +830,22 @@ const DocumentsTab: React.FC = () => {
         onClose={() => {
           setShowEditModal(false);
           setEditingFile(null);
+          setIsViewOnly(false);
         }}
         onSave={handleSaveContent}
         initialContent={editingFile?.content || ''}
         filename={editingFile?.filename || ''}
+        isViewOnly={isViewOnly}
       />
+
+      {/* Add processing notifications */}
+      {processingNotifications.map(notification => (
+        <ProcessingNotification
+          key={`${notification.topic}/${notification.filename}`}
+          notification={notification}
+          onClose={() => removeNotification(notification.filename)}
+        />
+      ))}
     </div>
   );
 };

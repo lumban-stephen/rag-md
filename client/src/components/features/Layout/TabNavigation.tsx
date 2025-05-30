@@ -1,12 +1,17 @@
 import React from 'react';
-import { Upload, FileText, Search, Activity as ActivityLog } from 'lucide-react';
-import { TabProps } from '../../types';
+import { Upload, FileText, Search, Activity as ActivityLog, Loader2 } from 'lucide-react';
+
+interface TabProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}
 
 const TabNavigation: React.FC<TabProps> = ({ activeTab, setActiveTab }) => {
   const tabs = [
-    { id: 'upload', label: 'Upload', icon: <Upload className="h-5 w-5" /> },
-    { id: 'documents', label: 'Documents', icon: <FileText className="h-5 w-5" /> },
     { id: 'search', label: 'Search', icon: <Search className="h-5 w-5" /> },
+    { id: 'documents', label: 'Documents', icon: <FileText className="h-5 w-5" /> },
+    { id: 'upload', label: 'Upload', icon: <Upload className="h-5 w-5" /> },
+    { id: 'processing', label: 'Processing', icon: <Loader2 className="h-5 w-5" /> },
     { id: 'logs', label: 'Logs', icon: <ActivityLog className="h-5 w-5" /> }
   ];
 

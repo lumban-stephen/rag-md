@@ -38,21 +38,32 @@ export class S3Service {
   }
 
   async listDocuments(topic?: string): Promise<any[]> {
-    const params = {
-      Bucket: config.aws.s3.bucket!,
-      Prefix: topic ? `${config.aws.s3.processedPrefix}${topic}/` : config.aws.s3.processedPrefix
-    };
-
     try {
       this.logger.log('S3 List Request', `Listing documents${topic ? ` for topic "${topic}"` : ''}`);
-      const response = await this.s3.listObjectsV2(params).promise();
       
-      if (!response.Contents) {
+      // List both processed and uploads directories
+      const [processedResponse, uploadsResponse] = await Promise.all([
+        this.s3.listObjectsV2({
+          Bucket: config.aws.s3.bucket!,
+          Prefix: topic ? `${config.aws.s3.processedPrefix}${topic}/` : config.aws.s3.processedPrefix
+        }).promise(),
+        this.s3.listObjectsV2({
+          Bucket: config.aws.s3.bucket!,
+          Prefix: topic ? `${config.aws.s3.uploadsPrefix}${topic}/` : config.aws.s3.uploadsPrefix
+        }).promise()
+      ]);
+
+      const allObjects = [
+        ...(processedResponse.Contents || []),
+        ...(uploadsResponse.Contents || [])
+      ];
+
+      if (!allObjects.length) {
         this.logger.log('S3 List Response', 'No documents found');
         return [];
       }
 
-      const processedObjects = response.Contents.map(object => {
+      const processedObjects = allObjects.map(object => {
         try {
           const key = object.Key || '';
           const parts = key.split('/');
@@ -62,11 +73,15 @@ export class S3Service {
             return null;
           }
 
+          // Determine if the file is still being processed
+          const isProcessing = key.startsWith(config.aws.s3.uploadsPrefix);
+
           const result = {
             filename: parts[parts.length - 1] || '',
             topic: parts[1] || '',
             lastModified: object.LastModified?.toISOString() || new Date().toISOString(),
-            size: object.Size || 0
+            size: object.Size || 0,
+            status: isProcessing ? 'processing' : 'complete'
           };
           
           return result;
@@ -138,19 +153,50 @@ export class S3Service {
   }
 
   async getFileContent(topic: string, filename: string): Promise<string> {
-    const key = `${config.aws.s3.processedPrefix}${topic}/${filename}`;
+    // Try processed directory first
+    const processedKey = `${config.aws.s3.processedPrefix}${topic}/${filename}`;
+    const uploadKey = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
     
-    const params = {
-      Bucket: config.aws.s3.bucket!,
-      Key: key
-    };
-
+    this.logger.log('File Content Request', `Attempting to get content for ${filename} in topic ${topic}`);
+    
     try {
-      const response = await this.s3.getObject(params).promise();
-      return response.Body?.toString('utf-8') || '';
-    } catch (error) {
-      console.error('Error getting file content:', error);
-      throw new Error('Failed to get file content');
+      // First try to get from processed directory
+      const processedParams = {
+        Bucket: config.aws.s3.bucket!,
+        Key: processedKey
+      };
+
+      try {
+        this.logger.log('File Content Request', `Checking processed directory: ${processedKey}`);
+        const response = await this.s3.getObject(processedParams).promise();
+        this.logger.log('File Content Response', `Found file in processed directory: ${processedKey}`);
+        return response.Body?.toString('utf-8') || '';
+      } catch (error: any) {
+        // If not in processed, try uploads directory
+        if (error.code === 'NoSuchKey') {
+          this.logger.log('File Content Request', `File not found in processed directory, checking uploads: ${uploadKey}`);
+          const uploadParams = {
+            Bucket: config.aws.s3.bucket!,
+            Key: uploadKey
+          };
+          
+          try {
+            const uploadResponse = await this.s3.getObject(uploadParams).promise();
+            this.logger.log('File Content Response', `Found file in uploads directory: ${uploadKey}`);
+            return uploadResponse.Body?.toString('utf-8') || '';
+          } catch (uploadError: any) {
+            if (uploadError.code === 'NoSuchKey') {
+              this.logger.log('File Content Error', `File not found in either directory: ${filename}`);
+              throw new Error(`File "${filename}" not found in either processed or uploads directory`);
+            }
+            throw uploadError;
+          }
+        }
+        throw error;
+      }
+    } catch (error: any) {
+      this.logger.log('File Content Error', `Error getting file content: ${error.message}`);
+      throw new Error(`Failed to get file content: ${error.message}`);
     }
   }
 

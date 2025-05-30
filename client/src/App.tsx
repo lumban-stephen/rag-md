@@ -7,9 +7,12 @@ import UploadTab from './components/features/Tabs/UploadTab';
 import DocumentsTab from './components/features/Tabs/DocumentsTab';
 import SearchTab from './components/features/Tabs/SearchTab';
 import LogsTab from './components/features/Tabs/LogsTab';
+import ProcessingTab from './components/features/Tabs/ProcessingTab.js';
+import { Search, FileText, Upload, Loader2, List } from 'lucide-react';
+import { ProcessingProvider } from './contexts/ProcessingContext.js';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('upload');
+  const [activeTab, setActiveTab] = useState('search');
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -19,6 +22,8 @@ function App() {
         return <DocumentsTab />;
       case 'search':
         return <SearchTab />;
+      case 'processing':
+        return <ProcessingTab />;
       case 'logs':
         return <LogsTab />;
       default:
@@ -26,20 +31,30 @@ function App() {
     }
   };
 
+  const tabs = [
+    { id: 'search', label: 'Search', icon: Search },
+    { id: 'documents', label: 'Documents', icon: FileText },
+    { id: 'upload', label: 'Upload', icon: Upload },
+    { id: 'processing', label: 'Processing', icon: Loader2 },
+    { id: 'logs', label: 'Logs', icon: List },
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
-      <Toaster position="top-right" />
-      <Header />
-      <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
-      
-      <main className="flex-grow">
-        <div className="container mx-auto bg-[hsl(var(--background))] p-4 border border-[hsl(var(--border))]">
-          {renderTabContent()}
-        </div>
-      </main>
-      
-      <Footer />
-    </div>
+    <ProcessingProvider>
+      <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+        <Toaster position="top-right" />
+        <Header />
+        <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
+        
+        <main className="flex-grow">
+          <div className="container mx-auto bg-[hsl(var(--background))] p-4 border border-[hsl(var(--border))]">
+            {renderTabContent()}
+          </div>
+        </main>
+        
+        <Footer />
+      </div>
+    </ProcessingProvider>
   );
 }
 

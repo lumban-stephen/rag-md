@@ -3,21 +3,22 @@ import { LogEntry } from '../../types';
 
 // Debug environment variables
 console.log('All env variables:', import.meta.env);
-console.log('API Base URL from env:', import.meta.env.VITE_API_BASE_URL);
+console.log('API Base URL from env:', import.meta.env.VITE_LOCAL_API_URL);
 
 // AWS API Gateway URL - this should be set in your .env file
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_LOCAL_API_URL || (import.meta.env.DEV ? 'http://localhost:3000/api' : 'http://172.28.64.1:3000/api');
+
 if (!API_BASE_URL) {
-  console.error('VITE_API_BASE_URL is not set in environment variables');
-  throw new Error('VITE_API_BASE_URL environment variable is required');
+  console.error('API Base URL is not configured');
+  throw new Error('API Base URL configuration is required');
 }
 
 console.log('Using API Base URL:', API_BASE_URL);
 
 // Create an axios instance with default config
 const api = axios.create({
-  baseURL: API_BASE_URL,  // Use the API Gateway URL directly
-  timeout: 30000, // Increase timeout to 30 seconds
+  baseURL: API_BASE_URL,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -71,11 +72,12 @@ interface Document {
   topic: string;
   lastModified: string;
   size: number;
+  status?: 'processing' | 'complete';
 }
 
 interface DocumentsResponse {
   documents: Document[];
-  topics?: string[];  // Add topics to the response
+  topics?: string[];
 }
 
 /**
@@ -103,21 +105,11 @@ export const uploadFile = async (file: File, topic: string, filename: string): P
     formData.append('topic', topic);
     formData.append('filename', filename);
 
-    // Use local backend in development
-    const isDevelopment = import.meta.env.DEV;
-    const baseURL = isDevelopment 
-      ? 'http://localhost:3000/api'
-      : API_BASE_URL;
-    
-    const localApi = axios.create({
-      baseURL,
-      timeout: 30000,
+    await api.post('/s3/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     });
-
-    await localApi.post('/s3/upload', formData);
     return true;
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -130,20 +122,8 @@ export const uploadFile = async (file: File, topic: string, filename: string): P
  */
 export const getDocuments = async (topic?: string): Promise<DocumentsResponse> => {
   try {
-    // Always use local S3 service
     const url = '/s3/documents';
-    
-    // Create a new axios instance for the local backend
-    const localApi = axios.create({
-      baseURL: 'http://localhost:3000/api',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-    
-    const response = await localApi.get(url);
+    const response = await api.get(url);
     
     // Extract unique topics from documents
     const allDocuments = (response.data.documents || []).map((doc: any) => {
@@ -155,7 +135,8 @@ export const getDocuments = async (topic?: string): Promise<DocumentsResponse> =
         filename: doc.filename || '',
         topic: doc.topic || '',
         lastModified: doc.lastModified || new Date().toISOString(),
-        size: size
+        size: size,
+        status: doc.status || 'complete' // Default to complete if status is not provided
       };
     });
     
@@ -193,18 +174,7 @@ export const getDocuments = async (topic?: string): Promise<DocumentsResponse> =
  */
 export const deleteDocument = async (topic: string, filename: string): Promise<boolean> => {
   try {
-    // Create a new axios instance for the local backend
-    const localApi = axios.create({
-      baseURL: 'http://localhost:3000/api',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-
-    // Use the correct local S3 service endpoint
-    await localApi.delete(`/s3/documents/${topic}/${filename}`);
+    await api.delete(`/s3/documents/${topic}/${filename}`);
     return true;
   } catch (error) {
     console.error('Error deleting document:', error);
@@ -230,25 +200,9 @@ export const reprocessDocument = async (topic: string, filename: string): Promis
  */
 export const searchDocuments = async (query: string, topic?: string): Promise<any[]> => {
   try {
-    // Use API Gateway directly in production, proxy in development
-    const isDevelopment = import.meta.env.DEV;
-    const baseURL = isDevelopment 
-      ? 'http://localhost:3000/api'
-      : API_BASE_URL;
-    
-    const api = axios.create({
-      baseURL,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-
-    // Use appropriate endpoint based on environment
     const url = topic 
-      ? (isDevelopment ? `/proxy/opensearch/${encodeURIComponent(topic)}` : `/search/${encodeURIComponent(topic)}`)
-      : (isDevelopment ? '/proxy/opensearch' : '/search');
+      ? `/proxy/opensearch/${encodeURIComponent(topic)}`
+      : '/proxy/opensearch';
     
     const response = await api.post(url, { query });
     
@@ -260,25 +214,22 @@ export const searchDocuments = async (query: string, topic?: string): Promise<an
     
     // Transform the results to match SearchResult type
     return response.data.results.map((item: any) => {
-      // Extract filename from metadata, handling different possible structures
       const filename = item.metadata?.filename || 
                       item.metadata?.source || 
                       item.metadata?.file || 
                       'Unknown file';
       
-      // Ensure confidence score is a number and format it
       const score = typeof item.score === 'number' ? item.score : 1.0;
       
       return {
         id: filename || Math.random().toString(36).substr(2, 9),
         snippet: item.text_chunk || '',
         filename: filename,
-        confidence: Number(score.toFixed(2)) // Format to 2 decimal places
+        confidence: Number(score.toFixed(2))
       };
     });
   } catch (error) {
     console.error('Error searching documents:', error);
-    // Return empty array on error to prevent .map errors
     return [];
   }
 };
@@ -288,22 +239,7 @@ export const searchDocuments = async (query: string, topic?: string): Promise<an
  */
 export const getLogs = async (): Promise<LogEntry[]> => {
   try {
-    // Use local backend in development
-    const isDevelopment = import.meta.env.DEV;
-    const baseURL = isDevelopment 
-      ? 'http://localhost:3000/api'
-      : API_BASE_URL;
-    
-    const localApi = axios.create({
-      baseURL,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-
-    const response = await localApi.get('/logs');
+    const response = await api.get('/logs');
     return response.data;
   } catch (error) {
     console.error('Error fetching logs:', error);
@@ -339,17 +275,7 @@ export const getIndexStats = async (): Promise<any> => {
  */
 export const deleteDocuments = async (documents: { topic: string; filename: string }[]): Promise<boolean> => {
   try {
-    // Create a new axios instance for the local backend
-    const localApi = axios.create({
-      baseURL: 'http://localhost:3000/api',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-
-    await localApi.delete('/s3/documents/bulk', { data: { documents } });
+    await api.delete('/s3/documents/bulk', { data: { documents } });
     return true;
   } catch (error) {
     console.error('Error deleting documents:', error);
@@ -362,17 +288,7 @@ export const deleteDocuments = async (documents: { topic: string; filename: stri
  */
 export const getDownloadUrl = async (topic: string, filename: string): Promise<string> => {
   try {
-    // Create a new axios instance for the local backend
-    const localApi = axios.create({
-      baseURL: 'http://localhost:3000/api',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-
-    const response = await localApi.get('/s3/download-url', {
+    const response = await api.get('/s3/download-url', {
       params: { topic, filename }
     });
     return response.data.url;
@@ -387,16 +303,7 @@ export const getDownloadUrl = async (topic: string, filename: string): Promise<s
  */
 export const getFileContent = async (topic: string, filename: string): Promise<string> => {
   try {
-    const localApi = axios.create({
-      baseURL: 'http://localhost:3000/api',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-
-    const response = await localApi.get('/s3/file-content', {
+    const response = await api.get('/s3/file-content', {
       params: { topic, filename }
     });
     return response.data.content;
@@ -411,19 +318,31 @@ export const getFileContent = async (topic: string, filename: string): Promise<s
  */
 export const updateFileContent = async (topic: string, filename: string, content: string): Promise<boolean> => {
   try {
-    const localApi = axios.create({
-      baseURL: 'http://localhost:3000/api',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
+    const response = await api.put('/s3/file-content', {
+      topic,
+      filename,
+      content
     });
-
-    await localApi.put('/s3/file-content', { topic, filename, content });
+    
+    if (!response.data) {
+      throw new Error('No response data received');
+    }
+    
     return true;
   } catch (error) {
     console.error('Error updating file content:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Axios error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        }
+      });
+    }
     throw error;
   }
 };
@@ -437,22 +356,7 @@ export const checkIngestionStatus = async (topic: string, filename: string): Pro
   timestamp?: string;
 }> => {
   try {
-    // Use local backend in development
-    const isDevelopment = import.meta.env.DEV;
-    const baseURL = isDevelopment 
-      ? 'http://localhost:3000/api'
-      : API_BASE_URL;
-    
-    const localApi = axios.create({
-      baseURL,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-
-    const response = await localApi.get('/s3/ingestion-status', {
+    const response = await api.get('/s3/ingestion-status', {
       params: { topic, filename }
     });
     return response.data;

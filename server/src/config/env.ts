@@ -21,7 +21,7 @@ export const config = {
     }
   },
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN || ['http://172.28.64.1:5173', 'http://localhost:5173'],
     credentials: true
   }
 } as const;

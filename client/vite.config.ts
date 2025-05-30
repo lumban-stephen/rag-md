@@ -16,10 +16,10 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
-      host: true,
+      host: '0.0.0.0',
       proxy: {
         '/api': {
-          target: env.VITE_API_BASE_URL,
+          target: env.VITE_LOCAL_API_URL,
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path.replace(/^\/api/, '')
@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => {
     base: '/',
     define: {
       'process.env': {
-        VITE_API_BASE_URL: JSON.stringify(env.VITE_API_BASE_URL || 'http://localhost:3000/api')
+        VITE_LOCAL_API_URL: JSON.stringify(env.VITE_LOCAL_API_URL || 'http://172.28.64.1:3000/api')
       }
     }
   };
