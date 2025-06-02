@@ -480,13 +480,20 @@ const DocumentsTab: React.FC = () => {
    * @returns Filtered and sorted document array
    */
   const getFilteredAndSortedDocuments = () => {
-    const filteredDocs = documents.filter(doc => 
-      doc.filename.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const searchTerm = searchQuery.toLowerCase();
     
-    return [...filteredDocs].sort((a, b) => {
+    // If search term is a single letter, only show files that start with it
+    const filteredDocs = documents.filter(doc => {
+      if (searchTerm.length === 1) {
+        return doc.filename.toLowerCase().startsWith(searchTerm);
+      }
+      // Otherwise show all files that contain the search term
+      return doc.filename.toLowerCase().includes(searchTerm);
+    });
+    
+    // Sort the filtered documents
+    const sortedDocs = [...filteredDocs].sort((a, b) => {
       let comparison = 0;
-      
       switch (sortField) {
         case 'filename':
           comparison = a.filename.localeCompare(b.filename);
@@ -504,6 +511,8 @@ const DocumentsTab: React.FC = () => {
       
       return sortDirection === 'asc' ? comparison : -comparison;
     });
+    
+    return sortedDocs;
   };
 
   /**
@@ -899,13 +908,15 @@ const DocumentsTab: React.FC = () => {
                   <div className="flex items-center">
                     <p className="text-sm text-gray-700">
                       Showing{' '}
-                      <span className="font-medium">{(currentPage - 1) * rowsPerPage + 1}</span>
+                      <span className="font-medium">
+                        {getFilteredAndSortedDocuments().length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}
+                      </span>
                       {' '}-{' '}
                       <span className="font-medium">
-                        {Math.min(currentPage * rowsPerPage, documents.length)}
+                        {Math.min(currentPage * rowsPerPage, getFilteredAndSortedDocuments().length)}
                       </span>
                       {' '}of{' '}
-                      <span className="font-medium">{documents.length}</span>
+                      <span className="font-medium">{getFilteredAndSortedDocuments().length}</span>
                       {' '}documents
                     </p>
                   </div>
@@ -917,7 +928,7 @@ const DocumentsTab: React.FC = () => {
                     >
                       Previous
                     </Button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    {Array.from({ length: Math.ceil(getFilteredAndSortedDocuments().length / rowsPerPage) }, (_, i) => i + 1).map((page) => (
                       <Button
                         key={page}
                         variant={currentPage === page ? "primary" : "ghost"}
@@ -929,7 +940,7 @@ const DocumentsTab: React.FC = () => {
                     <Button
                       variant="ghost"
                       onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
+                      disabled={currentPage === Math.ceil(getFilteredAndSortedDocuments().length / rowsPerPage)}
                     >
                       Next
                     </Button>
