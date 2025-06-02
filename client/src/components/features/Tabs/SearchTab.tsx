@@ -22,10 +22,8 @@ const SearchTab: React.FC = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   
-  // State for available topics with "All Topics" as default
-  const [topics, setTopics] = useState<{ value: string; label: string }[]>([
-    { value: '', label: 'All Topics' }
-  ]);
+  // State for available topics
+  const [topics, setTopics] = useState<{ value: string; label: string }[]>([]);
 
   // Fetch available topics on component mount
   useEffect(() => {
@@ -34,13 +32,10 @@ const SearchTab: React.FC = () => {
         const response = await getDocuments();
         if (response.topics) {
           const uniqueTopics = Array.from(new Set(response.topics.filter(Boolean)));
-          setTopics([
-            { value: '', label: 'All Topics' },
-            ...uniqueTopics.map(topic => ({
-              value: topic,
-              label: topic
-            }))
-          ]);
+          setTopics(uniqueTopics.map(topic => ({
+            value: topic,
+            label: topic
+          })));
         }
       } catch (error) {
         console.error('Error fetching topics:', error);

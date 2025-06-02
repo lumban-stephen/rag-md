@@ -176,7 +176,7 @@ export const getDocuments = async (params: GetDocumentsParams = {}): Promise<Doc
     return { 
       documents: allDocuments,
       total: response.data.total || 0,
-      topics: ['', ...topics] // Add empty string for "All Topics" option
+      topics: topics // Remove the empty string for "All Topics" option
     };
   } catch (error) {
     console.error('Error fetching documents:', error);

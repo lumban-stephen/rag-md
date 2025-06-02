@@ -239,9 +239,7 @@ const DocumentsTab: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
-  const [topics, setTopics] = useState<{ value: string; label: string }[]>([
-    { value: '', label: 'All Topics' }
-  ]);
+  const [topics, setTopics] = useState<{ value: string; label: string }[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteType, setDeleteType] = useState<'single' | 'bulk'>('single');
   const [documentToDelete, setDocumentToDelete] = useState<{ topic: string; filename: string } | null>(null);
@@ -278,13 +276,10 @@ const DocumentsTab: React.FC = () => {
       if (response.topics) {
         // Filter out empty strings and duplicates before mapping
         const uniqueTopics = Array.from(new Set(response.topics.filter(Boolean)));
-        setTopics([
-          { value: '', label: 'All Topics' },
-          ...uniqueTopics.map(topic => ({
-            value: topic,
-            label: topic
-          }))
-        ]);
+        setTopics(uniqueTopics.map(topic => ({
+          value: topic,
+          label: topic
+        })));
       }
     } catch (error) {
       console.error('Error in fetchDocuments:', error);
@@ -718,10 +713,7 @@ const DocumentsTab: React.FC = () => {
             </div>
             <div className="w-48">
               <Select
-                options={[
-                  { value: '', label: 'All Topics' },
-                  ...topics.filter(t => t.value !== '')
-                ]}
+                options={topics}
                 value={selectedTopic}
                 onChange={(e) => setSelectedTopic(e.target.value)}
                 fullWidth
