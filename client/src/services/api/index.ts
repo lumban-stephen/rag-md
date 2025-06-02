@@ -209,6 +209,9 @@ export const searchDocuments = async (query: string, topic?: string): Promise<an
     
     const response = await api.post(url, { query });
     
+    // Add debug logging
+    console.log('Search response for topic:', topic, response.data);
+    
     // Check if response has the expected structure
     if (!response.data || !response.data.results || !Array.isArray(response.data.results)) {
       console.warn('Search response has unexpected structure:', response.data);
@@ -217,7 +220,11 @@ export const searchDocuments = async (query: string, topic?: string): Promise<an
     
     // Transform the results to match SearchResult type
     return response.data.results.map((item: any) => {
+      // Add debug logging for metadata
+      console.log('Result item metadata:', item.metadata);
+      
       const filename = item.metadata?.filename || 
+                      item.metadata?.original_filename ||
                       item.metadata?.source || 
                       item.metadata?.file || 
                       'Unknown file';

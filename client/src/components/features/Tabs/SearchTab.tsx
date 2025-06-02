@@ -63,7 +63,8 @@ const SearchTab: React.FC = () => {
     setIsSearching(true);
     try {
       const searchResults = await searchDocuments(query, selectedTopic || undefined);
-      setResults(searchResults);
+      // Limit results to 3 and reset previous results
+      setResults(searchResults.slice(0, 3));
       setHasSearched(true);
     } catch (error) {
       console.error('Error searching documents:', error);
@@ -139,7 +140,11 @@ const SearchTab: React.FC = () => {
                   label="Filter by topic (optional)"
                   options={topics}
                   value={selectedTopic}
-                  onChange={(e) => setSelectedTopic(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedTopic(e.target.value);
+                    setResults([]); // Reset results when changing topic
+                    setHasSearched(false); // Reset search state
+                  }}
                   fullWidth
                 />
               </div>
@@ -182,8 +187,8 @@ const SearchTab: React.FC = () => {
               ) : (
                 // Results list
                 <div className="space-y-6">
-                  {results.map((result) => (
-                    <div key={result.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                  {results.map((result, index) => (
+                    <div key={`${result.id}-${index}`} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                       {/* Result header with metadata */}
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex flex-col">
