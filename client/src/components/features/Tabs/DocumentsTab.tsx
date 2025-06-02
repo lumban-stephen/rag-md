@@ -233,6 +233,7 @@ const ProcessingNotification: React.FC<{
 const DocumentsTab: React.FC = () => {
   // State management for documents and UI
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [totalDocuments, setTotalDocuments] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTopic, setSelectedTopic] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -262,8 +263,16 @@ const DocumentsTab: React.FC = () => {
   const fetchDocuments = async () => {
     setIsLoading(true);
     try {
-      const response = await getDocuments(selectedTopic || undefined);
+      const response = await getDocuments({
+        topic: selectedTopic || undefined,
+        page: currentPage,
+        limit: rowsPerPage,
+        search: searchQuery,
+        sortField,
+        sortDirection
+      });
       setDocuments(response.documents);
+      setTotalDocuments(response.total);
       
       // Update topics if we got them from the response
       if (response.topics) {
@@ -285,15 +294,15 @@ const DocumentsTab: React.FC = () => {
     }
   };
 
-  // Fetch documents when topic changes
+  // Fetch documents when any filter changes
   useEffect(() => {
     fetchDocuments();
-  }, [selectedTopic]);
+  }, [selectedTopic, currentPage, searchQuery, sortField, sortDirection]);
 
-  // Reset pagination when topic changes
+  // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedTopic]);
+  }, [selectedTopic, searchQuery, sortField, sortDirection]);
 
   /**
    * Initiates the document deletion process
@@ -476,46 +485,6 @@ const DocumentsTab: React.FC = () => {
   };
 
   /**
-   * Filters and sorts documents based on current criteria
-   * @returns Filtered and sorted document array
-   */
-  const getFilteredAndSortedDocuments = () => {
-    const searchTerm = searchQuery.toLowerCase();
-    
-    // If search term is a single letter, only show files that start with it
-    const filteredDocs = documents.filter(doc => {
-      if (searchTerm.length === 1) {
-        return doc.filename.toLowerCase().startsWith(searchTerm);
-      }
-      // Otherwise show all files that contain the search term
-      return doc.filename.toLowerCase().includes(searchTerm);
-    });
-    
-    // Sort the filtered documents
-    const sortedDocs = [...filteredDocs].sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'filename':
-          comparison = a.filename.localeCompare(b.filename);
-          break;
-        case 'topic':
-          comparison = a.topic.localeCompare(b.topic);
-          break;
-        case 'lastModified':
-          comparison = new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime();
-          break;
-        case 'size':
-          comparison = a.size - b.size;
-          break;
-      }
-      
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-    
-    return sortedDocs;
-  };
-
-  /**
    * Handles document download
    * Generates download URL and triggers download
    */
@@ -679,12 +648,10 @@ const DocumentsTab: React.FC = () => {
    * @returns Array of documents for current page
    */
   const getPaginatedDocuments = () => {
-    const sortedDocs = getFilteredAndSortedDocuments();
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    return sortedDocs.slice(startIndex, startIndex + rowsPerPage);
+    return documents;
   };
 
-  const totalPages = Math.ceil(getFilteredAndSortedDocuments().length / rowsPerPage);
+  const totalPages = Math.ceil(totalDocuments / rowsPerPage);
 
   /**
    * Handles page change in pagination
@@ -903,20 +870,20 @@ const DocumentsTab: React.FC = () => {
               </table>
               
               {/* Pagination Controls */}
-              {documents.length > rowsPerPage && (
+              {totalDocuments > 0 && (
                 <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
                   <div className="flex items-center">
                     <p className="text-sm text-gray-700">
                       Showing{' '}
                       <span className="font-medium">
-                        {getFilteredAndSortedDocuments().length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}
+                        {totalDocuments === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}
                       </span>
                       {' '}-{' '}
                       <span className="font-medium">
-                        {Math.min(currentPage * rowsPerPage, getFilteredAndSortedDocuments().length)}
+                        {Math.min(currentPage * rowsPerPage, totalDocuments)}
                       </span>
                       {' '}of{' '}
-                      <span className="font-medium">{getFilteredAndSortedDocuments().length}</span>
+                      <span className="font-medium">{totalDocuments}</span>
                       {' '}documents
                     </p>
                   </div>
@@ -928,7 +895,7 @@ const DocumentsTab: React.FC = () => {
                     >
                       Previous
                     </Button>
-                    {Array.from({ length: Math.ceil(getFilteredAndSortedDocuments().length / rowsPerPage) }, (_, i) => i + 1).map((page) => (
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <Button
                         key={page}
                         variant={currentPage === page ? "primary" : "ghost"}
@@ -940,7 +907,7 @@ const DocumentsTab: React.FC = () => {
                     <Button
                       variant="ghost"
                       onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === Math.ceil(getFilteredAndSortedDocuments().length / rowsPerPage)}
+                      disabled={currentPage === totalPages}
                     >
                       Next
                     </Button>

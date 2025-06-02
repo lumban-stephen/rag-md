@@ -75,8 +75,18 @@ interface Document {
   status?: 'processing' | 'complete';
 }
 
+interface GetDocumentsParams {
+  topic?: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
+}
+
 interface DocumentsResponse {
   documents: Document[];
+  total: number;
   topics?: string[];
 }
 
@@ -118,11 +128,32 @@ export const uploadFile = async (file: File, topic: string, filename: string): P
 };
 
 /**
- * Get documents by topic
+ * Get documents with pagination, filtering, and sorting
  */
-export const getDocuments = async (topic?: string): Promise<DocumentsResponse> => {
+export const getDocuments = async (params: GetDocumentsParams = {}): Promise<DocumentsResponse> => {
   try {
-    const url = '/s3/documents';
+    const {
+      topic,
+      page = 1,
+      limit = 10,
+      search = '',
+      sortField = 'lastModified',
+      sortDirection = 'desc'
+    } = params;
+
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      search,
+      sortField,
+      sortDirection
+    });
+
+    if (topic) {
+      queryParams.append('topic', topic);
+    }
+
+    const url = `/s3/documents?${queryParams.toString()}`;
     const response = await api.get(url);
     
     // Extract unique topics from documents
@@ -140,15 +171,11 @@ export const getDocuments = async (topic?: string): Promise<DocumentsResponse> =
       };
     });
     
-    // Filter documents by topic if specified
-    const documents = topic 
-      ? allDocuments.filter((doc: Document) => doc.topic === topic)
-      : allDocuments;
-    
     const topics = Array.from(new Set(allDocuments.map((doc: Document) => doc.topic).filter(Boolean))) as string[];
     
     return { 
-      documents,
+      documents: allDocuments,
+      total: response.data.total || 0,
       topics: ['', ...topics] // Add empty string for "All Topics" option
     };
   } catch (error) {

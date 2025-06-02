@@ -1,4 +1,16 @@
 /**
+ * Options for listing documents
+ */
+interface ListDocumentsOptions {
+  topic?: string;
+  search?: string;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
+  skip?: number;
+  limit?: number;
+}
+
+/**
  * DocumentService handles all basic document operations in S3
  * including listing, uploading, downloading, and deleting documents
  */
@@ -48,13 +60,21 @@ export class DocumentService {
   }
 
   /**
-   * Lists all documents in S3, optionally filtered by topic
-   * Searches both processed and uploads directories
-   * @param topic - Optional topic to filter documents by
-   * @returns Array of document metadata including status
+   * Lists documents in S3 with pagination, filtering, and sorting
+   * @param options - Options for listing documents
+   * @returns Paginated and filtered document list
    */
-  async listDocuments(topic?: string): Promise<Document[]> {
+  async listDocuments(options: ListDocumentsOptions = {}): Promise<DocumentListResponse> {
     try {
+      const {
+        topic,
+        search = '',
+        sortField = 'lastModified',
+        sortDirection = 'desc',
+        skip = 0,
+        limit = 10
+      } = options;
+
       this.logger.log('S3 List Request', `Listing documents${topic ? ` for topic "${topic}"` : ''}`);
       
       // List both processed and uploads directories in parallel
@@ -76,11 +96,11 @@ export class DocumentService {
 
       if (!allObjects.length) {
         this.logger.log('S3 List Response', 'No documents found');
-        return [];
+        return { documents: [], total: 0 };
       }
 
       // Process and format each object into a Document
-      const processedObjects = allObjects.map(object => {
+      let processedObjects = allObjects.map(object => {
         try {
           const key = object.Key || '';
           const parts = key.split('/');
@@ -109,8 +129,48 @@ export class DocumentService {
         }
       }).filter(Boolean) as Document[];
 
-      this.logger.log('S3 List Response', `Found ${processedObjects.length} documents`);
-      return processedObjects;
+      // Apply search filter if provided
+      if (search) {
+        const searchLower = search.toLowerCase();
+        processedObjects = processedObjects.filter(doc => {
+          if (search.length === 1) {
+            return doc.filename.toLowerCase().startsWith(searchLower);
+          }
+          return doc.filename.toLowerCase().includes(searchLower);
+        });
+      }
+
+      // Sort the documents
+      processedObjects.sort((a, b) => {
+        let comparison = 0;
+        switch (sortField) {
+          case 'filename':
+            comparison = a.filename.localeCompare(b.filename);
+            break;
+          case 'topic':
+            comparison = a.topic.localeCompare(b.topic);
+            break;
+          case 'lastModified':
+            comparison = a.lastModified.getTime() - b.lastModified.getTime();
+            break;
+          case 'size':
+            comparison = a.size - b.size;
+            break;
+        }
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+
+      // Get total count before pagination
+      const total = processedObjects.length;
+
+      // Apply pagination
+      const paginatedObjects = processedObjects.slice(skip, skip + limit);
+
+      this.logger.log('S3 List Response', `Found ${total} documents, returning ${paginatedObjects.length}`);
+      return {
+        documents: paginatedObjects,
+        total
+      };
     } catch (error: any) {
       this.logger.log('S3 Error', `Error listing documents: ${error.message}`);
       throw new Error('Failed to list documents');
@@ -143,7 +203,7 @@ export class DocumentService {
       // After deleting the file, check if there are any remaining files in the topic
       const remainingFiles = await this.listDocuments(topic);
       
-      if (remainingFiles.length === 0) {
+      if (remainingFiles.documents.length === 0) {
         // If no files remain, delete the topic directory itself
         await Promise.all([
           this.s3.deleteObject({

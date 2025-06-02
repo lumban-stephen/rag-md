@@ -96,11 +96,38 @@ router.get('/download-url', async (req, res) => {
 /**
  * List all documents across all topics
  * @route GET /api/s3/documents
+ * @query page - Page number (default: 1)
+ * @query limit - Items per page (default: 10)
+ * @query search - Search term for filename
+ * @query sortField - Field to sort by (filename, topic, lastModified, size)
+ * @query sortDirection - Sort direction (asc, desc)
+ * @query topic - Optional topic filter
  */
 router.get('/documents', async (req, res) => {
   try {
-    const documents = await s3Service.listDocuments();
-    res.json({ documents });
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      sortField = 'lastModified',
+      sortDirection = 'desc',
+      topic
+    } = req.query;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    const documents = await s3Service.listDocuments({
+      topic: topic as string,
+      search: search as string,
+      sortField: sortField as string,
+      sortDirection: sortDirection as 'asc' | 'desc',
+      skip,
+      limit: limitNum
+    });
+
+    res.json(documents);
   } catch (error) {
     console.error('Error listing documents:', error);
     res.status(500).json({ error: 'Failed to list documents' });
