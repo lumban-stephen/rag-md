@@ -232,7 +232,6 @@ const UploadTab: React.FC = () => {
         setUploadProgress(0);
         setIsUploading(false);
       }, 2000);
-      
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Error uploading file. Please try again.');
@@ -254,7 +253,7 @@ const UploadTab: React.FC = () => {
               label="Topic"
               topics={topics}
               value={topic}
-              onChange={(e) => setTopic(e.target.value)}
+              onChange={(value) => setTopic(value)}
               onAddTopic={handleAddTopic}
               fullWidth
               disabled={isLoadingTopics}

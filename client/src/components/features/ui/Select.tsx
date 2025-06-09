@@ -59,7 +59,7 @@ const Select = forwardRef<HTMLInputElement, SelectProps>(
           </label>
         )}
         <div
-          className={`relative px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm 
+          className={`relative h-[38px] flex items-center px-3 bg-white border border-gray-300 rounded-md shadow-sm 
                      text-gray-700 cursor-pointer ${fullWidth ? 'w-full' : ''} 
                      ${error ? 'border-red-500' : ''} ${className}`}
           onClick={handleTriggerClick}
@@ -72,15 +72,19 @@ const Select = forwardRef<HTMLInputElement, SelectProps>(
             }
           }}
         >
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center w-full">
             <span>{selectedLabel}</span>
             <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} />
           </div>
         </div>
         {isOpen && (
           <div 
-            className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
-            style={{ pointerEvents: 'auto' }}
+            className="absolute z-50 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto min-w-[200px]"
+            style={{ 
+              pointerEvents: 'auto',
+              width: 'max-content',
+              minWidth: '100%'
+            }}
           >
             {options.map((option) => (
               <div
@@ -89,17 +93,13 @@ const Select = forwardRef<HTMLInputElement, SelectProps>(
                   option.value === value ? 'bg-blue-50' : ''
                 }`}
                 onClick={(e) => {
-                  // --- VITAL DEBUGGING LINE ---
                   console.log('OPTION CLICKED:', option.label, 'Target:', e.target);
-                  // --- END VITAL DEBUGGING LINE ---
                   handleSelect(option);
                 }}
                 onMouseDown={(e) => {
-                  // --- VITAL DEBUGGING LINE ---
                   console.log('OPTION MOUSEDOWN:', option.label, 'Target:', e.target);
-                  // --- END VITAL DEBUGGING LINE ---
                   e.preventDefault();
-                  e.stopPropagation(); // This is important to prevent click-outside from firing on option mousedown
+                  e.stopPropagation();
                 }}
                 role="option"
                 aria-selected={option.value === value}
@@ -186,18 +186,20 @@ export const TopicSelect: React.FC<TopicSelectProps> = ({
           </button>
         </div>
       ) : (
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Select
             value={value}
             onChange={onChange}
             options={topics}
             className={`flex-1 ${props.error ? 'border-red-500' : ''}`}
             {...props}
+            label={undefined}
           />
           <button
             onClick={() => setIsAddingNew(true)}
-            className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 
-                     focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            className="h-[38px] px-3 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 
+                     focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
+                     flex items-center justify-center whitespace-nowrap"
           >
             + New
           </button>

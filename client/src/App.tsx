@@ -13,8 +13,7 @@ import DocumentsTab from './components/features/Tabs/DocumentsTab.js';
 import SearchTab from './components/features/Tabs/SearchTab.js';
 import LogsTab from './components/features/Tabs/LogsTab.js';
 import ProcessingTab from './components/features/Tabs/ProcessingTab.js';
-import View3DTab from './components/features/Tabs/View3DTab.js';
-import { Search, FileText, Upload, Loader2, List, Box } from 'lucide-react';
+import { Search, FileText, Upload, Loader2, List } from 'lucide-react';
 import { ProcessingProvider } from './contexts/ProcessingContext.js';
 
 function App() {
@@ -37,8 +36,6 @@ function App() {
         return <ProcessingTab />;
       case 'logs':
         return <LogsTab />;
-      case 'view3d':
-        return <View3DTab />;
       default:
         return <UploadTab />;
     }
@@ -50,8 +47,7 @@ function App() {
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'upload', label: 'Upload', icon: Upload },
     { id: 'processing', label: 'Processing', icon: Loader2 },
-    { id: 'logs', label: 'Logs', icon: List },
-    { id: 'view3d', label: '3D View', icon: Box }
+    { id: 'logs', label: 'Logs', icon: List }
   ];
 
   return (
