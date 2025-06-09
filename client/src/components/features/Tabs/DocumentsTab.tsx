@@ -1,12 +1,3 @@
-/**
- * DocumentsTab Component
- * Provides a comprehensive interface for managing documents including:
- * - Viewing, editing, and deleting documents
- * - Filtering by topic and searching
- * - Sorting and pagination
- * - Bulk operations
- * - Processing status tracking
- */
 import React, { useState, useEffect } from 'react';
 import { Trash2, RefreshCw, AlertCircle, ArrowUpDown, Download, Edit2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -15,7 +6,7 @@ import Button from '../ui/Button.js';
 import Select from '../ui/Select.js';
 import Badge from '../ui/Badge.js';
 import ConfirmationModal from '../ui/ConfirmationModal.js';
-import { getDocuments, deleteDocument, deleteDocuments, getDownloadUrl, getFileContent, updateFileContent, checkIngestionStatus } from '../../../services/api/index.js';
+import { getDocuments, deleteDocument, deleteDocuments, getDownloadUrl, getFileContent, updateFileContent, checkIngestionStatus, getAllTopics } from '../../../services/api/index.js';
 import toast from 'react-hot-toast';
 import Input from '../ui/Input.js';
 import { useProcessing } from '../../../contexts/ProcessingContext.js';
@@ -255,8 +246,33 @@ const DocumentsTab: React.FC = () => {
   const { addJob } = useProcessing();
 
   /**
+   * Fetches all available topics
+   */
+  const fetchTopics = async () => {
+    console.log('Starting to fetch topics...');
+    try {
+      const topicsList = await getAllTopics();
+      console.log('Received topics:', topicsList);
+      // Filter out empty strings and duplicates before mapping
+      const uniqueTopics = Array.from(new Set(topicsList.filter(Boolean)));
+      console.log('Unique topics after filtering:', uniqueTopics);
+      setTopics(uniqueTopics.map(topic => ({
+        value: topic,
+        label: topic
+      })));
+      console.log('Final topics state:', uniqueTopics.map(topic => ({
+        value: topic,
+        label: topic
+      })));
+    } catch (error) {
+      console.error('Error fetching topics:', error);
+      toast.error('Failed to load topics');
+    }
+  };
+
+  /**
    * Fetches documents from the API
-   * Updates the document list and available topics
+   * Updates the document list
    */
   const fetchDocuments = async () => {
     setIsLoading(true);
@@ -271,16 +287,6 @@ const DocumentsTab: React.FC = () => {
       });
       setDocuments(response.documents);
       setTotalDocuments(response.total);
-      
-      // Update topics if we got them from the response
-      if (response.topics) {
-        // Filter out empty strings and duplicates before mapping
-        const uniqueTopics = Array.from(new Set(response.topics.filter(Boolean)));
-        setTopics(uniqueTopics.map(topic => ({
-          value: topic,
-          label: topic
-        })));
-      }
     } catch (error) {
       console.error('Error in fetchDocuments:', error);
       toast.error('Failed to load documents');
@@ -288,6 +294,11 @@ const DocumentsTab: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // Fetch topics when component mounts
+  useEffect(() => {
+    fetchTopics();
+  }, []);
 
   // Fetch documents when any filter changes
   useEffect(() => {
@@ -298,6 +309,11 @@ const DocumentsTab: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedTopic, searchQuery, sortField, sortDirection]);
+
+  // Log when topics state changes
+  useEffect(() => {
+    console.log('Topics state updated:', topics);
+  }, [topics]);
 
   /**
    * Initiates the document deletion process
@@ -715,7 +731,7 @@ const DocumentsTab: React.FC = () => {
               <Select
                 options={topics}
                 value={selectedTopic}
-                onChange={(e) => setSelectedTopic(e.target.value)}
+                onChange={(selectedValue) => setSelectedTopic(selectedValue)}
                 fullWidth
               />
             </div>

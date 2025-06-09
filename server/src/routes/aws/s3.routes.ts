@@ -271,4 +271,24 @@ router.get('/ingestion-status', async (req, res) => {
   }
 });
 
+/**
+ * Get all available topics
+ * @route GET /api/s3/topics
+ */
+router.get('/topics', async (req, res) => {
+  console.log('Received request for topics');
+  try {
+    const topics = await s3Service.getAllTopics();
+    console.log('Retrieved topics from S3:', topics);
+    res.json({ topics });
+  } catch (error: any) {
+    console.error('Error getting topics:', error);
+    res.status(500).json({ 
+      error: 'Failed to get topics',
+      message: error.message || 'Unknown error',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 export default router; 

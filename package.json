@@ -23,7 +23,7 @@
     "aws-sdk": "^2.1550.0",
     "axios": "^1.9.0",
     "cors": "^2.8.5",
-    "date-fns": "^3.3.1",
+    "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "helmet": "^7.1.0",
@@ -32,6 +32,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.4.1",
+    "react-router-dom": "^7.6.2",
+    "three": "^0.162.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
@@ -42,6 +44,7 @@
     "@types/node": "^20.11.19",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.162.0",
     "@typescript-eslint/eslint-plugin": "^7.0.1",
     "@typescript-eslint/parser": "^7.0.1",
     "@vitejs/plugin-react": "^4.3.1",

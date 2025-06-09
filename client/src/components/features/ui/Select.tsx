@@ -1,40 +1,114 @@
-import React, { forwardRef, useState } from 'react';
+import React, { forwardRef, useState, useRef, useEffect } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 export interface SelectOption {
   value: string;
   label: string;
 }
 
-export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+export interface SelectProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
   label?: string;
   options: SelectOption[];
   error?: string;
   fullWidth?: boolean;
+  onChange?: (value: string) => void;
 }
 
-const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, options, error, className = '', fullWidth = false, ...props }, ref) => {
+const Select = forwardRef<HTMLInputElement, SelectProps>(
+  ({ label, options, error, className = '', fullWidth = false, value, onChange, ...props }, ref) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [selectedLabel, setSelectedLabel] = useState('');
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Update selected label when value changes
+    useEffect(() => {
+      const option = options.find(opt => opt.value === value);
+      setSelectedLabel(option ? option.label : 'Select an option');
+    }, [value, options]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+          setIsOpen(false);
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSelect = (option: SelectOption) => {
+      if (onChange) {
+        onChange(option.value);
+      }
+      setIsOpen(false);
+    };
+
+    const handleTriggerClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsOpen(!isOpen);
+    };
+
     return (
-      <div className={`${fullWidth ? 'w-full' : ''} mb-4`}>
+      <div className={`${fullWidth ? 'w-full' : ''} mb-4 relative`} ref={dropdownRef}>
         {label && (
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {label}
           </label>
         )}
-        <select
-          className={`px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm 
-                     text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                     focus:border-blue-500 ${fullWidth ? 'w-full' : ''} ${error ? 'border-red-500' : ''} ${className}`}
-          ref={ref}
-          {...props}
+        <div
+          className={`relative px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm 
+                     text-gray-700 cursor-pointer ${fullWidth ? 'w-full' : ''} 
+                     ${error ? 'border-red-500' : ''} ${className}`}
+          onClick={handleTriggerClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsOpen(!isOpen);
+            }
+          }}
         >
-          <option value="">Select an option</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          <div className="flex justify-between items-center">
+            <span>{selectedLabel}</span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} />
+          </div>
+        </div>
+        {isOpen && (
+          <div 
+            className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+            style={{ pointerEvents: 'auto' }}
+          >
+            {options.map((option) => (
+              <div
+                key={option.value}
+                className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${
+                  option.value === value ? 'bg-blue-50' : ''
+                }`}
+                onClick={(e) => {
+                  // --- VITAL DEBUGGING LINE ---
+                  console.log('OPTION CLICKED:', option.label, 'Target:', e.target);
+                  // --- END VITAL DEBUGGING LINE ---
+                  handleSelect(option);
+                }}
+                onMouseDown={(e) => {
+                  // --- VITAL DEBUGGING LINE ---
+                  console.log('OPTION MOUSEDOWN:', option.label, 'Target:', e.target);
+                  // --- END VITAL DEBUGGING LINE ---
+                  e.preventDefault();
+                  e.stopPropagation(); // This is important to prevent click-outside from firing on option mousedown
+                }}
+                role="option"
+                aria-selected={option.value === value}
+              >
+                {option.label}
+              </div>
+            ))}
+          </div>
+        )}
         {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
       </div>
     );
@@ -113,21 +187,13 @@ export const TopicSelect: React.FC<TopicSelectProps> = ({
         </div>
       ) : (
         <div className="flex gap-2">
-          <select
+          <Select
             value={value}
             onChange={onChange}
-            className={`flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm 
-                     text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                     focus:border-blue-500 ${props.error ? 'border-red-500' : ''}`}
+            options={topics}
+            className={`flex-1 ${props.error ? 'border-red-500' : ''}`}
             {...props}
-          >
-            <option value="">Select a topic</option>
-            {topics.map((topic) => (
-              <option key={topic.value} value={topic.value}>
-                {topic.label}
-              </option>
-            ))}
-          </select>
+          />
           <button
             onClick={() => setIsAddingNew(true)}
             className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 

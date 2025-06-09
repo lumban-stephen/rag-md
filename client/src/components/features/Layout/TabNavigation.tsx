@@ -1,5 +1,5 @@
 import React from 'react';
-import { Upload, FileText, Search, Activity as ActivityLog, Loader2 } from 'lucide-react';
+import { Upload, FileText, Search, Activity as ActivityLog, Loader2, Box } from 'lucide-react';
 
 interface TabProps {
   activeTab: string;
@@ -12,7 +12,8 @@ const TabNavigation: React.FC<TabProps> = ({ activeTab, setActiveTab }) => {
     { id: 'documents', label: 'Documents', icon: <FileText className="h-5 w-5" /> },
     { id: 'upload', label: 'Upload', icon: <Upload className="h-5 w-5" /> },
     { id: 'processing', label: 'Processing', icon: <Loader2 className="h-5 w-5" /> },
-    { id: 'logs', label: 'Logs', icon: <ActivityLog className="h-5 w-5" /> }
+    { id: 'logs', label: 'Logs', icon: <ActivityLog className="h-5 w-5" /> },
+    { id: 'view3d', label: '3D View', icon: <Box className="h-5 w-5" /> }
   ];
 
   return (

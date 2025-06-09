@@ -1,6 +1,9 @@
+import AWS from 'aws-sdk';
 import { DocumentService } from './document.service.js';
 import { FileContentService } from './file-content.service.js';
 import { IngestionStatusService } from './ingestion-status.service.js';
+import { config } from '../../config/env.js';
+import { DocumentListResponse } from '../../interfaces/document.types.js';
 
 export class S3Service {
   private documentService: DocumentService;
@@ -8,6 +11,13 @@ export class S3Service {
   private ingestionStatusService: IngestionStatusService;
 
   constructor() {
+    // Initialize AWS configuration
+    AWS.config.update({
+      region: config.aws.region,
+      accessKeyId: config.aws.accessKeyId,
+      secretAccessKey: config.aws.secretAccessKey
+    });
+
     this.documentService = new DocumentService();
     this.fileContentService = new FileContentService();
     this.ingestionStatusService = new IngestionStatusService();
@@ -18,8 +28,8 @@ export class S3Service {
     return this.documentService.generatePresignedUrl(topic, filename);
   }
 
-  async listDocuments(topic?: string): Promise<any[]> {
-    return this.documentService.listDocuments(topic);
+  async listDocuments(options?: { topic?: string }): Promise<DocumentListResponse> {
+    return this.documentService.listDocuments(options);
   }
 
   async deleteDocument(topic: string, filename: string): Promise<void> {
@@ -47,5 +57,32 @@ export class S3Service {
   // Ingestion status operations
   async checkIngestionStatus(topic: string, filename: string) {
     return this.ingestionStatusService.checkIngestionStatus(topic, filename);
+  }
+
+  // Topic operations
+  async getAllTopics(): Promise<string[]> {
+    try {
+      console.log('Getting all topics...');
+      const response = await this.documentService.listDocuments();
+      console.log('List documents response:', response);
+      
+      if (!response || !response.documents) {
+        console.error('Invalid response from listDocuments:', response);
+        throw new Error('Invalid response from listDocuments');
+      }
+
+      // Extract unique topics from documents
+      const topics = Array.from(new Set(
+        response.documents
+          .map(doc => doc.topic)
+          .filter(Boolean) // Remove null/undefined/empty strings
+      ));
+
+      console.log('Extracted topics:', topics);
+      return topics;
+    } catch (error) {
+      console.error('Error in getAllTopics:', error);
+      throw error;
+    }
   }
 } 

@@ -402,3 +402,16 @@ export const checkIngestionStatus = async (topic: string, filename: string): Pro
     throw error;
   }
 };
+
+/**
+ * Get all available topics
+ */
+export const getAllTopics = async (): Promise<string[]> => {
+  try {
+    const response = await api.get('/s3/topics');
+    return response.data.topics || [];
+  } catch (error) {
+    console.error('Error fetching topics:', error);
+    throw error;
+  }
+};

@@ -23,8 +23,14 @@ import { S3_CONSTANTS } from '../../constants/s3.constants.js';
 export class DocumentService {
   private s3: AWS.S3;
   private logger: LoggingService;
+  private bucketName: string;
 
   constructor() {
+    // Validate AWS configuration
+    if (!config.aws.s3.bucket) {
+      throw new Error('AWS S3 bucket name is not configured');
+    }
+
     // Initialize AWS S3 client with credentials from config
     this.s3 = new AWS.S3({
       region: config.aws.region,
@@ -32,6 +38,23 @@ export class DocumentService {
       secretAccessKey: config.aws.secretAccessKey
     });
     this.logger = LoggingService.getInstance();
+    this.bucketName = config.aws.s3.bucket;
+
+    // Log configuration
+    this.logger.log('AWS Configuration', `Initialized S3 service with bucket: ${this.bucketName}`);
+  }
+
+  /**
+   * Validates that the S3 bucket exists and is accessible
+   * @throws Error if bucket is not accessible
+   */
+  private async validateBucket(): Promise<void> {
+    try {
+      await this.s3.headBucket({ Bucket: this.bucketName }).promise();
+    } catch (error: any) {
+      this.logger.log('AWS Error', `Failed to access S3 bucket: ${error.message}`);
+      throw new Error(`Failed to access S3 bucket: ${error.message}`);
+    }
   }
 
   /**
@@ -44,7 +67,7 @@ export class DocumentService {
     const key = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
     
     const params = {
-      Bucket: config.aws.s3.bucket!,
+      Bucket: this.bucketName,
       Key: key,
       Expires: S3_CONSTANTS.URL_EXPIRY,
       ContentType: S3_CONSTANTS.CONTENT_TYPES.TEXT
@@ -66,6 +89,9 @@ export class DocumentService {
    */
   async listDocuments(options: ListDocumentsOptions = {}): Promise<DocumentListResponse> {
     try {
+      // Validate bucket access first
+      await this.validateBucket();
+
       const {
         topic,
         search = '',
@@ -80,11 +106,11 @@ export class DocumentService {
       // List both processed and uploads directories in parallel
       const [processedResponse, uploadsResponse] = await Promise.all([
         this.s3.listObjectsV2({
-          Bucket: config.aws.s3.bucket!,
+          Bucket: this.bucketName,
           Prefix: topic ? `${config.aws.s3.processedPrefix}${topic}/` : config.aws.s3.processedPrefix
         }).promise(),
         this.s3.listObjectsV2({
-          Bucket: config.aws.s3.bucket!,
+          Bucket: this.bucketName,
           Prefix: topic ? `${config.aws.s3.uploadsPrefix}${topic}/` : config.aws.s3.uploadsPrefix
         }).promise()
       ]);
@@ -188,30 +214,33 @@ export class DocumentService {
     const uploadKey = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
     
     try {
+      // Validate bucket access first
+      await this.validateBucket();
+
       // Try to delete from both processed and uploads directories
       await Promise.all([
         this.s3.deleteObject({
-          Bucket: config.aws.s3.bucket!,
+          Bucket: this.bucketName,
           Key: processedKey
         }).promise(),
         this.s3.deleteObject({
-          Bucket: config.aws.s3.bucket!,
+          Bucket: this.bucketName,
           Key: uploadKey
         }).promise()
       ]);
 
       // After deleting the file, check if there are any remaining files in the topic
-      const remainingFiles = await this.listDocuments(topic);
+      const remainingFiles = await this.listDocuments({ topic });
       
       if (remainingFiles.documents.length === 0) {
         // If no files remain, delete the topic directory itself
         await Promise.all([
           this.s3.deleteObject({
-            Bucket: config.aws.s3.bucket!,
+            Bucket: this.bucketName,
             Key: `${config.aws.s3.processedPrefix}${topic}/`
           }).promise(),
           this.s3.deleteObject({
-            Bucket: config.aws.s3.bucket!,
+            Bucket: this.bucketName,
             Key: `${config.aws.s3.uploadsPrefix}${topic}/`
           }).promise()
         ]);
@@ -232,14 +261,17 @@ export class DocumentService {
   async uploadFile(topic: string, filename: string, fileBuffer: Buffer, contentType: string): Promise<void> {
     const key = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
     
-    const params = {
-      Bucket: config.aws.s3.bucket!,
-      Key: key,
-      Body: fileBuffer,
-      ContentType: contentType
-    };
-
     try {
+      // Validate bucket access first
+      await this.validateBucket();
+
+      const params = {
+        Bucket: this.bucketName,
+        Key: key,
+        Body: fileBuffer,
+        ContentType: contentType
+      };
+
       await this.s3.upload(params).promise();
       this.logger.log('Document Upload', `File "${filename}" uploaded to topic "${topic}"`);
     } catch (error: any) {
@@ -257,13 +289,16 @@ export class DocumentService {
   async generateDownloadUrl(topic: string, filename: string): Promise<string> {
     const key = `${config.aws.s3.processedPrefix}${topic}/${filename}`;
     
-    const params = {
-      Bucket: config.aws.s3.bucket!,
-      Key: key,
-      Expires: S3_CONSTANTS.URL_EXPIRY
-    };
-
     try {
+      // Validate bucket access first
+      await this.validateBucket();
+
+      const params = {
+        Bucket: this.bucketName,
+        Key: key,
+        Expires: S3_CONSTANTS.URL_EXPIRY
+      };
+
       const url = await this.s3.getSignedUrlPromise('getObject', params);
       return url;
     } catch (error) {
