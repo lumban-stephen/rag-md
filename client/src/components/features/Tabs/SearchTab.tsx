@@ -135,8 +135,8 @@ const SearchTab: React.FC = () => {
                   label="Filter by topic (optional)"
                   options={topics}
                   value={selectedTopic}
-                  onChange={(e) => {
-                    setSelectedTopic(e.target.value);
+                  onChange={(selectedValue) => {
+                    setSelectedTopic(selectedValue);
                     setResults([]); // Reset results when changing topic
                     setHasSearched(false); // Reset search state
                   }}
