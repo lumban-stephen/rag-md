@@ -125,6 +125,11 @@ const UploadTab: React.FC = () => {
 
     // Check if file type is accepted
     if (!acceptedMimeTypes.includes(file.type)) {
+      // Fallback: Check file extension
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      if (extension === 'md' || extension === 'txt' || extension === 'pdf') {
+        return true;
+      }
       toast.error('Invalid file type. Please upload PDF, TXT, or MD files only.');
       return false;
     }

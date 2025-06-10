@@ -415,3 +415,24 @@ export const getAllTopics = async (): Promise<string[]> => {
     throw error;
   }
 };
+
+/**
+ * Get processing logs for a document
+ */
+export const getProcessingLogs = async (topic: string, filename: string): Promise<{
+  logs: Array<{
+    timestamp: number;
+    message: string;
+    logStreamName: string;
+  }>;
+}> => {
+  try {
+    const response = await api.get('/s3/processing-logs', {
+      params: { topic, filename }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching processing logs:', error);
+    throw error;
+  }
+};

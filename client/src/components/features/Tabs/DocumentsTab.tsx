@@ -6,7 +6,7 @@ import Button from '../ui/Button.js';
 import Select from '../ui/Select.js';
 import Badge from '../ui/Badge.js';
 import ConfirmationModal from '../ui/ConfirmationModal.js';
-import { getDocuments, deleteDocument, deleteDocuments, getDownloadUrl, getFileContent, updateFileContent, checkIngestionStatus, getAllTopics } from '../../../services/api/index.js';
+import { getDocuments, deleteDocument, deleteDocuments, getDownloadUrl, getFileContent, updateFileContent, checkIngestionStatus, getAllTopics, getProcessingLogs } from '../../../services/api/index.js';
 import toast from 'react-hot-toast';
 import Input from '../ui/Input.js';
 import { useProcessing } from '../../../contexts/ProcessingContext.js';
@@ -217,6 +217,12 @@ const ProcessingNotification: React.FC<{
   );
 };
 
+interface ProcessingLog {
+  timestamp: number;
+  message: string;
+  logStreamName: string;
+}
+
 /**
  * Main DocumentsTab component
  * Manages the document list, filtering, sorting, and operations
@@ -244,6 +250,10 @@ const DocumentsTab: React.FC = () => {
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [processingNotifications, setProcessingNotifications] = useState<ProcessingNotification[]>([]);
   const { addJob } = useProcessing();
+  const [showLogsModal, setShowLogsModal] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<{ topic: string; filename: string } | null>(null);
+  const [processingLogs, setProcessingLogs] = useState<ProcessingLog[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   /**
    * Fetches all available topics
@@ -709,6 +719,25 @@ const DocumentsTab: React.FC = () => {
     );
   };
 
+  /**
+   * Handles viewing processing logs for a document
+   */
+  const handleViewLogs = async (topic: string, filename: string) => {
+    setSelectedDocument({ topic, filename });
+    setShowLogsModal(true);
+    setIsLoadingLogs(true);
+
+    try {
+      const { logs } = await getProcessingLogs(topic, filename);
+      setProcessingLogs(logs);
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+      toast.error('Failed to fetch processing logs');
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
+
   return (
     <div className="p-6">
       <Card>
@@ -870,6 +899,15 @@ const DocumentsTab: React.FC = () => {
                           >
                             Delete
                           </Button>
+                          <button
+                            onClick={() => handleViewLogs(doc.topic, doc.filename)}
+                            className="text-gray-600 hover:text-gray-800"
+                            title="View Processing Logs"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                            </svg>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -965,6 +1003,50 @@ const DocumentsTab: React.FC = () => {
           onClose={() => removeNotification(notification.filename)}
         />
       ))}
+
+      {/* Logs Modal */}
+      {showLogsModal && selectedDocument && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-3/4 max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                Processing Logs: {selectedDocument.filename}
+              </h3>
+              <button
+                onClick={() => setShowLogsModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="flex-grow overflow-auto bg-gray-100 rounded p-4 font-mono text-sm">
+              {isLoadingLogs ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                </div>
+              ) : processingLogs.length > 0 ? (
+                <div className="space-y-2">
+                  {processingLogs.map((log, index) => (
+                    <div key={index} className="flex gap-4">
+                      <span className="text-gray-500 whitespace-nowrap">
+                        {new Date(log.timestamp).toLocaleString()}
+                      </span>
+                      <span className="text-gray-800">{log.message}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-500 text-center">
+                  No logs available for this document
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

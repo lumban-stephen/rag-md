@@ -89,9 +89,6 @@ export class DocumentService {
    */
   async listDocuments(options: ListDocumentsOptions = {}): Promise<DocumentListResponse> {
     try {
-      // Validate bucket access first
-      await this.validateBucket();
-
       const {
         topic,
         search = '',
@@ -105,14 +102,20 @@ export class DocumentService {
       
       // List both processed and uploads directories in parallel
       const [processedResponse, uploadsResponse] = await Promise.all([
-        this.s3.listObjectsV2({
+        this.s3.listObjects({
           Bucket: this.bucketName,
           Prefix: topic ? `${config.aws.s3.processedPrefix}${topic}/` : config.aws.s3.processedPrefix
-        }).promise(),
-        this.s3.listObjectsV2({
+        }).promise().catch(error => {
+          this.logger.log('S3 List Error', `Error listing processed objects: ${error.message}`);
+          return { Contents: [] };
+        }),
+        this.s3.listObjects({
           Bucket: this.bucketName,
           Prefix: topic ? `${config.aws.s3.uploadsPrefix}${topic}/` : config.aws.s3.uploadsPrefix
-        }).promise()
+        }).promise().catch(error => {
+          this.logger.log('S3 List Error', `Error listing uploads objects: ${error.message}`);
+          return { Contents: [] };
+        })
       ]);
 
       const allObjects = [
@@ -156,7 +159,7 @@ export class DocumentService {
       }).filter(Boolean) as Document[];
 
       // Apply search filter if provided
-      if (search) {
+      if (search && typeof search === 'string') {
         const searchLower = search.toLowerCase();
         processedObjects = processedObjects.filter(doc => {
           if (search.length === 1) {
@@ -199,7 +202,7 @@ export class DocumentService {
       };
     } catch (error: any) {
       this.logger.log('S3 Error', `Error listing documents: ${error.message}`);
-      throw new Error('Failed to list documents');
+      return { documents: [], total: 0 }; // Return empty list instead of throwing error
     }
   }
 
@@ -214,39 +217,105 @@ export class DocumentService {
     const uploadKey = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
     
     try {
-      // Validate bucket access first
-      await this.validateBucket();
+      this.logger.log('Delete Start', JSON.stringify({
+        message: `Starting deletion of "${filename}" from topic "${topic}"`,
+        topic,
+        filename,
+        processedKey,
+        uploadKey,
+        timestamp: new Date().toISOString()
+      }));
 
       // Try to delete from both processed and uploads directories
       await Promise.all([
         this.s3.deleteObject({
           Bucket: this.bucketName,
           Key: processedKey
-        }).promise(),
+        }).promise().then(() => {
+          this.logger.log('Delete Success', JSON.stringify({
+            message: `Successfully deleted from processed: ${processedKey}`,
+            topic,
+            filename,
+            key: processedKey,
+            timestamp: new Date().toISOString()
+          }));
+        }),
         this.s3.deleteObject({
           Bucket: this.bucketName,
           Key: uploadKey
-        }).promise()
+        }).promise().then(() => {
+          this.logger.log('Delete Success', JSON.stringify({
+            message: `Successfully deleted from uploads: ${uploadKey}`,
+            topic,
+            filename,
+            key: uploadKey,
+            timestamp: new Date().toISOString()
+          }));
+        })
       ]);
 
-      // After deleting the file, check if there are any remaining files in the topic
-      const remainingFiles = await this.listDocuments({ topic });
-      
-      if (remainingFiles.documents.length === 0) {
-        // If no files remain, delete the topic directory itself
-        await Promise.all([
-          this.s3.deleteObject({
-            Bucket: this.bucketName,
-            Key: `${config.aws.s3.processedPrefix}${topic}/`
-          }).promise(),
-          this.s3.deleteObject({
-            Bucket: this.bucketName,
-            Key: `${config.aws.s3.uploadsPrefix}${topic}/`
-          }).promise()
-        ]);
+      // After deleting the file, try to check for remaining files
+      try {
+        const remainingFiles = await this.listDocuments({ topic });
+        this.logger.log('List Check', JSON.stringify({
+          message: `Found ${remainingFiles.documents.length} remaining files in topic "${topic}"`,
+          topic,
+          remainingCount: remainingFiles.documents.length,
+          timestamp: new Date().toISOString()
+        }));
+        
+        if (remainingFiles.documents.length === 0) {
+          // If no files remain, delete the topic directory itself
+          await Promise.all([
+            this.s3.deleteObject({
+              Bucket: this.bucketName,
+              Key: `${config.aws.s3.processedPrefix}${topic}/`
+            }).promise().then(() => {
+              this.logger.log('Delete Success', JSON.stringify({
+                message: `Deleted empty processed topic directory: ${topic}/`,
+                topic,
+                key: `${config.aws.s3.processedPrefix}${topic}/`,
+                timestamp: new Date().toISOString()
+              }));
+            }),
+            this.s3.deleteObject({
+              Bucket: this.bucketName,
+              Key: `${config.aws.s3.uploadsPrefix}${topic}/`
+            }).promise().then(() => {
+              this.logger.log('Delete Success', JSON.stringify({
+                message: `Deleted empty uploads topic directory: ${topic}/`,
+                topic,
+                key: `${config.aws.s3.uploadsPrefix}${topic}/`,
+                timestamp: new Date().toISOString()
+              }));
+            })
+          ]);
+        }
+      } catch (listError: any) {
+        // Log the error but don't fail the deletion
+        this.logger.log('List Error', JSON.stringify({
+          message: `Failed to check remaining files after deletion: ${listError.message}`,
+          topic,
+          filename,
+          error: listError.message,
+          timestamp: new Date().toISOString()
+        }));
       }
+
+      this.logger.log('Delete Complete', JSON.stringify({
+        message: `Successfully completed deletion of "${filename}" from topic "${topic}"`,
+        topic,
+        filename,
+        timestamp: new Date().toISOString()
+      }));
     } catch (error: any) {
-      this.logger.log('Delete Error', `Failed to delete file "${filename}" from topic "${topic}": ${error.message}`);
+      this.logger.log('Delete Error', JSON.stringify({
+        message: `Failed to delete file "${filename}" from topic "${topic}": ${error.message}`,
+        topic,
+        filename,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      }));
       throw new Error(`Failed to delete document: ${error.message}`);
     }
   }
@@ -262,8 +331,15 @@ export class DocumentService {
     const key = `${config.aws.s3.uploadsPrefix}${topic}/${filename}`;
     
     try {
-      // Validate bucket access first
-      await this.validateBucket();
+      this.logger.log('Upload Start', JSON.stringify({
+        message: `Starting upload of "${filename}" to topic "${topic}"`,
+        topic,
+        filename,
+        key,
+        contentType,
+        fileSize: fileBuffer.length,
+        timestamp: new Date().toISOString()
+      }));
 
       const params = {
         Bucket: this.bucketName,
@@ -273,9 +349,32 @@ export class DocumentService {
       };
 
       await this.s3.upload(params).promise();
-      this.logger.log('Document Upload', `File "${filename}" uploaded to topic "${topic}"`);
+      
+      this.logger.log('Upload Success', JSON.stringify({
+        message: `Successfully uploaded "${filename}" to topic "${topic}"`,
+        topic,
+        filename,
+        key,
+        timestamp: new Date().toISOString()
+      }));
+
+      // Log that ingestion will be triggered
+      this.logger.log('Ingestion Triggered', JSON.stringify({
+        message: `Ingestion process triggered for "${filename}" in topic "${topic}"`,
+        topic,
+        filename,
+        key,
+        timestamp: new Date().toISOString()
+      }));
     } catch (error: any) {
-      this.logger.log('Upload Error', `Failed to upload file "${filename}" to topic "${topic}": ${error.message}`);
+      this.logger.log('Upload Error', JSON.stringify({
+        message: `Failed to upload file "${filename}" to topic "${topic}": ${error.message}`,
+        topic,
+        filename,
+        key,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      }));
       throw new Error('Failed to upload file to S3');
     }
   }

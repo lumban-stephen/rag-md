@@ -89,6 +89,15 @@ export class IngestionStatusService {
     const processedKey = `${config.aws.s3.processedPrefix}${topic}/${filename}`;
 
     try {
+      this.logger.log('Status Check Start', JSON.stringify({
+        message: `Checking ingestion status for "${filename}" in topic "${topic}"`,
+        topic,
+        filename,
+        uploadKey,
+        processedKey,
+        timestamp: new Date().toISOString()
+      }));
+
       // Check if file exists in uploads/
       const uploadParams = {
         Bucket: config.aws.s3.bucket!,
@@ -104,6 +113,13 @@ export class IngestionStatusService {
       try {
         // If file is in uploads/, it's still being processed
         await this.s3.headObject(uploadParams).promise();
+        this.logger.log('Status Check Result', JSON.stringify({
+          message: `File "${filename}" is still being processed`,
+          topic,
+          filename,
+          status: S3_CONSTANTS.STATUS.PROCESSING,
+          timestamp: new Date().toISOString()
+        }));
         return {
           status: S3_CONSTANTS.STATUS.PROCESSING,
           message: 'File is being processed',
@@ -113,6 +129,14 @@ export class IngestionStatusService {
         // If file is not in uploads/, check if it's in processed/
         try {
           const processedFile = await this.s3.headObject(processedParams).promise();
+          this.logger.log('Status Check Result', JSON.stringify({
+            message: `File "${filename}" has been processed`,
+            topic,
+            filename,
+            status: S3_CONSTANTS.STATUS.COMPLETE,
+            lastModified: processedFile.LastModified?.toISOString(),
+            timestamp: new Date().toISOString()
+          }));
           return {
             status: S3_CONSTANTS.STATUS.COMPLETE,
             message: 'File has been processed',
@@ -120,6 +144,13 @@ export class IngestionStatusService {
           };
         } catch (error) {
           // If file is not in either location, it might have failed
+          this.logger.log('Status Check Result', JSON.stringify({
+            message: `File "${filename}" not found in either uploads or processed directories`,
+            topic,
+            filename,
+            status: S3_CONSTANTS.STATUS.ERROR,
+            timestamp: new Date().toISOString()
+          }));
           return {
             status: S3_CONSTANTS.STATUS.ERROR,
             message: 'File not found in either uploads or processed directories'
@@ -127,7 +158,13 @@ export class IngestionStatusService {
         }
       }
     } catch (error) {
-      console.error('Error checking ingestion status:', error);
+      this.logger.log('Status Check Error', JSON.stringify({
+        message: `Error checking ingestion status: ${error}`,
+        topic,
+        filename,
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString()
+      }));
       return {
         status: S3_CONSTANTS.STATUS.ERROR,
         message: 'Failed to check ingestion status'

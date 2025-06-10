@@ -7,9 +7,11 @@ import { Router } from 'express';
 import { S3Service } from '../../services/aws/s3.service.js';
 import multer from 'multer';
 import { config } from '../../config/env.js';
+import { CloudWatchService } from '../../services/aws/cloudwatch.service.js';
 
 const router = Router();
 const s3Service = new S3Service();
+const cloudWatchService = new CloudWatchService();
 
 // Configure multer for memory storage of uploaded files
 const upload = multer({ storage: multer.memoryStorage() });
@@ -288,6 +290,30 @@ router.get('/topics', async (req, res) => {
       message: error.message || 'Unknown error',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  }
+});
+
+/**
+ * Get processing logs for a document
+ * @route GET /api/s3/processing-logs
+ */
+router.get('/processing-logs', async (req, res) => {
+  try {
+    const { topic, filename } = req.query;
+    
+    if (!topic || !filename) {
+      return res.status(400).json({ error: 'Topic and filename are required' });
+    }
+
+    const logs = await cloudWatchService.getDocumentProcessingLogs(
+      topic as string,
+      filename as string
+    );
+    
+    res.json({ logs });
+  } catch (error) {
+    console.error('Error fetching processing logs:', error);
+    res.status(500).json({ error: 'Failed to fetch processing logs' });
   }
 });
 
