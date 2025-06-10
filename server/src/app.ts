@@ -11,7 +11,7 @@ const app = express();
 // Middleware
 app.use(helmet());
 app.use(cors(config.cors));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // Routes
 app.use('/api/s3', s3Routes);

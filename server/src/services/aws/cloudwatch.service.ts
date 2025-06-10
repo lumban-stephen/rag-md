@@ -93,17 +93,50 @@ export class CloudWatchService {
    */
   async getDocumentProcessingLogs(topic: string, filename: string, limit: number = 100): Promise<LogEvent[]> {
     try {
+      // First check if the log group exists
+      try {
+        await this.cloudWatchLogs.describeLogGroups({
+          logGroupNamePrefix: '/aws/lambda/ingest_handler'
+        }).promise();
+      } catch (error: any) {
+        if (error.code === 'ResourceNotFoundException') {
+          // If log group doesn't exist, return an empty array with a message
+          return [{
+            timestamp: Date.now(),
+            message: 'No processing logs available yet. The document has been updated and will be processed shortly.',
+            logStreamName: 'system'
+          }];
+        }
+        throw error;
+      }
+
       const events = await this.getLogEvents('ingest_handler', limit);
       
       // Filter logs related to the specific document
       const documentKey = `${topic}/${filename}`;
-      return events.filter(event => 
+      const filteredEvents = events.filter(event => 
         event.message.includes(documentKey) || 
         event.message.includes(filename)
       );
+
+      // If no logs found, return a message
+      if (filteredEvents.length === 0) {
+        return [{
+          timestamp: Date.now(),
+          message: 'No processing logs available yet. The document has been updated and will be processed shortly.',
+          logStreamName: 'system'
+        }];
+      }
+
+      return filteredEvents;
     } catch (error: any) {
       this.logger.log('CloudWatch Error', `Failed to get document processing logs: ${error.message}`);
-      throw error;
+      // Return a user-friendly message instead of throwing
+      return [{
+        timestamp: Date.now(),
+        message: 'Unable to fetch processing logs at this time. The document has been updated and will be processed shortly.',
+        logStreamName: 'system'
+      }];
     }
   }
 } 

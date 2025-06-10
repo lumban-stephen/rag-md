@@ -90,7 +90,7 @@ export class IngestionStatusService {
 
     try {
       this.logger.log('Status Check Start', JSON.stringify({
-        message: `Checking ingestion status for "${filename}" in topic "${topic}"`,
+        message: `Checking processing status for document "${filename}" in topic "${topic}"`,
         topic,
         filename,
         uploadKey,
@@ -114,7 +114,12 @@ export class IngestionStatusService {
         // If file is in uploads/, it's still being processed
         await this.s3.headObject(uploadParams).promise();
         this.logger.log('Status Check Result', JSON.stringify({
-          message: `File "${filename}" is still being processed`,
+          message: `Document "${filename}" is currently being processed in topic "${topic}".\n` +
+                  `The ingestion pipeline is working on:\n` +
+                  `- Extracting and processing the document content\n` +
+                  `- Generating searchable embeddings\n` +
+                  `- Indexing the content for future retrieval\n` +
+                  `This process may take a few minutes depending on the document size.`,
           topic,
           filename,
           status: S3_CONSTANTS.STATUS.PROCESSING,
@@ -130,7 +135,11 @@ export class IngestionStatusService {
         try {
           const processedFile = await this.s3.headObject(processedParams).promise();
           this.logger.log('Status Check Result', JSON.stringify({
-            message: `File "${filename}" has been processed`,
+            message: `Document "${filename}" has been successfully processed in topic "${topic}".\n` +
+                    `The document is now:\n` +
+                    `- Fully indexed and searchable\n` +
+                    `- Available for retrieval and querying\n` +
+                    `- Ready to be used in the RAG pipeline`,
             topic,
             filename,
             status: S3_CONSTANTS.STATUS.COMPLETE,
@@ -145,7 +154,11 @@ export class IngestionStatusService {
         } catch (error) {
           // If file is not in either location, it might have failed
           this.logger.log('Status Check Result', JSON.stringify({
-            message: `File "${filename}" not found in either uploads or processed directories`,
+            message: `Document "${filename}" in topic "${topic}" could not be found in the processing pipeline.\n` +
+                    `Possible reasons:\n` +
+                    `- The ingestion process may have failed\n` +
+                    `- The file may have been deleted\n` +
+                    `- There might be an issue with the processing pipeline`,
             topic,
             filename,
             status: S3_CONSTANTS.STATUS.ERROR,
@@ -159,7 +172,7 @@ export class IngestionStatusService {
       }
     } catch (error) {
       this.logger.log('Status Check Error', JSON.stringify({
-        message: `Error checking ingestion status: ${error}`,
+        message: `Error checking processing status for document "${filename}" in topic "${topic}": ${error}`,
         topic,
         filename,
         error: error instanceof Error ? error.message : String(error),

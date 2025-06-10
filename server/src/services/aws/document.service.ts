@@ -358,12 +358,26 @@ export class DocumentService {
         timestamp: new Date().toISOString()
       }));
 
-      // Log that ingestion will be triggered
+      // Log that ingestion will be triggered with more details
       this.logger.log('Ingestion Triggered', JSON.stringify({
-        message: `Ingestion process triggered for "${filename}" in topic "${topic}"`,
+        message: `Document "${filename}" has been queued for processing in topic "${topic}". The ingestion process will:\n` +
+                `1. Extract text content from the document\n` +
+                `2. Split content into manageable chunks\n` +
+                `3. Generate embeddings for each chunk\n` +
+                `4. Index the chunks in the search database\n` +
+                `5. Move the file to the processed directory when complete`,
         topic,
         filename,
         key,
+        fileSize: fileBuffer.length,
+        contentType,
+        expectedSteps: [
+          'Text extraction',
+          'Content chunking',
+          'Embedding generation',
+          'Search indexing',
+          'File processing'
+        ],
         timestamp: new Date().toISOString()
       }));
     } catch (error: any) {

@@ -154,7 +154,7 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialC
           </Button>
           {!isViewOnly && (
             <Button
-              variant={showConfirmSave ? "danger" : "primary"}
+              variant={showConfirmSave ? "primary" : "primary"}
               onClick={handleSave}
               isLoading={isSaving}
             >
@@ -638,6 +638,21 @@ const DocumentsTab: React.FC = () => {
       setShowEditModal(false);
       setEditingFile(null);
       fetchDocuments();
+
+      // Show logs modal after successful update
+      setSelectedDocument({ topic: editingFile.topic, filename: editingFile.filename });
+      setShowLogsModal(true);
+      setIsLoadingLogs(true);
+
+      try {
+        const { logs } = await getProcessingLogs(editingFile.topic, editingFile.filename);
+        setProcessingLogs(logs);
+      } catch (error) {
+        console.error('Error fetching logs:', error);
+        toast.error('Failed to fetch processing logs');
+      } finally {
+        setIsLoadingLogs(false);
+      }
     } catch (error) {
       console.error('Error updating document:', error);
       toast.error('Failed to update document');
