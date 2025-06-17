@@ -52,12 +52,14 @@ const UploadTab: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Accepted file types and MIME types for validation
-  const acceptedFileTypes = '.pdf,.txt,.md';
+  const acceptedFileTypes = '.pdf,.txt,.md,.json,.csv';
   const acceptedMimeTypes = [
     'application/pdf',
     'text/plain',
     'text/markdown',
-    'text/x-markdown'
+    'text/x-markdown',
+    'application/json',
+    'text/csv'
   ];
 
   /**

@@ -130,7 +130,7 @@ const SearchTab: React.FC = () => {
                 />
               </div>
               {/* Topic filter dropdown */}
-              <div>
+              <div className="relative">
                 <Select
                   label="Filter by topic (optional)"
                   options={topics}

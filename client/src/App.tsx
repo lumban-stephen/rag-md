@@ -77,7 +77,7 @@ function App() {
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
         
         {/* Main content area */}
-        <main className="flex-grow w-full flex justify-center">
+        <main className="flex-grow w-full flex justify-center mt-8">
           <div className="w-full min-w-[80%] max-w-[80%]">
             {renderTabContent()}
           </div>

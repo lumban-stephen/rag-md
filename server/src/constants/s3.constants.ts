@@ -11,7 +11,8 @@ export const S3_CONSTANTS = {
   CONTENT_TYPES: {
     TEXT: 'text/plain',
     MARKDOWN: 'text/markdown',
-    JSON: 'application/json'
+    JSON: 'application/json',
+    CSV: 'text/csv'
   },
 
   /**
@@ -34,7 +35,7 @@ export const S3_CONSTANTS = {
    * Allowed file extensions for upload
    * Currently supports text, markdown, and JSON files
    */
-  ALLOWED_EXTENSIONS: ['.txt', '.md', '.json'],
+  ALLOWED_EXTENSIONS: ['.txt', '.md', '.json', '.csv'],
 
   URL_EXPIRY: 3600, // 1 hour in seconds
   POLL_INTERVAL: 10000, // 10 seconds in milliseconds

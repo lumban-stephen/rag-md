@@ -18,13 +18,24 @@ const Select = forwardRef<HTMLInputElement, SelectProps>(
   ({ label, options, error, className = '', fullWidth = false, value, onChange, ...props }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedLabel, setSelectedLabel] = useState('');
+    const [searchText, setSearchText] = useState('');
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Update selected label when value changes
     useEffect(() => {
       const option = options.find(opt => opt.value === value);
       setSelectedLabel(option ? option.label : 'Select an option');
     }, [value, options]);
+
+    // Focus search input when dropdown opens
+    useEffect(() => {
+      if (isOpen && searchInputRef.current) {
+        searchInputRef.current.focus();
+      } else {
+        setSearchText('');
+      }
+    }, [isOpen]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -50,6 +61,11 @@ const Select = forwardRef<HTMLInputElement, SelectProps>(
       e.stopPropagation();
       setIsOpen(!isOpen);
     };
+
+    // Filter options based on search text
+    const filteredOptions = options.filter(option =>
+      option.label.toLowerCase().includes(searchText.toLowerCase())
+    );
 
     return (
       <div className={`${fullWidth ? 'w-full' : ''} mb-4 relative`} ref={dropdownRef}>
@@ -79,34 +95,55 @@ const Select = forwardRef<HTMLInputElement, SelectProps>(
         </div>
         {isOpen && (
           <div 
-            className="absolute z-50 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto min-w-[200px]"
+            className="absolute z-[100] mt-1 bg-white border border-gray-300 rounded-md shadow-lg min-w-[200px]"
             style={{ 
               pointerEvents: 'auto',
               width: 'max-content',
               minWidth: '100%'
             }}
           >
-            {options.map((option) => (
-              <div
-                key={option.value}
-                className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${
-                  option.value === value ? 'bg-blue-50' : ''
-                }`}
-                onClick={(e) => {
-                  console.log('OPTION CLICKED:', option.label, 'Target:', e.target);
-                  handleSelect(option);
-                }}
-                onMouseDown={(e) => {
-                  console.log('OPTION MOUSEDOWN:', option.label, 'Target:', e.target);
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                role="option"
-                aria-selected={option.value === value}
-              >
-                {option.label}
-              </div>
-            ))}
+            {/* Search input */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-2 z-10">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="Search..."
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+            {/* Options container with fixed height */}
+            <div className="max-h-[160px] overflow-y-auto">
+              {/* Filtered options */}
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => (
+                  <div
+                    key={option.value}
+                    className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${
+                      option.value === value ? 'bg-blue-50' : ''
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelect(option);
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    role="option"
+                    aria-selected={option.value === value}
+                  >
+                    {option.label}
+                  </div>
+                ))
+              ) : (
+                <div className="px-3 py-2 text-gray-500 text-sm">
+                  No options found
+                </div>
+              )}
+            </div>
           </div>
         )}
         {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
