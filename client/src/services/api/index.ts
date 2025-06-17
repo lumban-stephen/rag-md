@@ -6,7 +6,7 @@ console.log('All env variables:', import.meta.env);
 console.log('API Base URL from env:', import.meta.env.VITE_LOCAL_API_URL);
 
 // AWS API Gateway URL - this should be set in your .env file
-const API_BASE_URL = import.meta.env.VITE_LOCAL_API_URL || (import.meta.env.DEV ? 'http://localhost:3000/api' : 'http://172.28.64.1:3000/api');
+const API_BASE_URL = import.meta.env.VITE_LOCAL_API_URL || (import.meta.env.DEV ? 'http://localhost:3010/api' : 'http://172.28.64.1:3010/api');
 
 if (!API_BASE_URL) {
   console.error('API Base URL is not configured');
@@ -433,6 +433,25 @@ export const getProcessingLogs = async (topic: string, filename: string): Promis
     return response.data;
   } catch (error) {
     console.error('Error fetching processing logs:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get chunks for a specific document
+ */
+export const getDocumentChunks = async (topic: string, filename: string): Promise<{
+  chunks: Array<{
+    text: string;
+    metadata: Record<string, any>;
+    score: number;
+  }>;
+}> => {
+  try {
+    const response = await api.get(`/proxy/opensearch/chunks/${encodeURIComponent(topic)}/${encodeURIComponent(filename)}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting document chunks:', error);
     throw error;
   }
 };

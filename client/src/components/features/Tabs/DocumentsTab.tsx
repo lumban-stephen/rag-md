@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, RefreshCw, AlertCircle, ArrowUpDown, Download, Edit2, Loader2 } from 'lucide-react';
+import { Trash2, RefreshCw, AlertCircle, ArrowUpDown, Download, Edit2, Loader2, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card.js';
 import Button from '../ui/Button.js';
 import Select from '../ui/Select.js';
 import Badge from '../ui/Badge.js';
 import ConfirmationModal from '../ui/ConfirmationModal.js';
-import { getDocuments, deleteDocument, deleteDocuments, getDownloadUrl, getFileContent, updateFileContent, checkIngestionStatus, getAllTopics, getProcessingLogs } from '../../../services/api/index.js';
+import { getDocuments, deleteDocument, deleteDocuments, getDownloadUrl, getFileContent, updateFileContent, checkIngestionStatus, getAllTopics, getProcessingLogs, getDocumentChunks } from '../../../services/api/index.js';
 import toast from 'react-hot-toast';
 import Input from '../ui/Input.js';
-import { useProcessing } from '../../../contexts/ProcessingContext.js';
 
 /**
  * Represents a document in the system
@@ -223,6 +222,12 @@ interface ProcessingLog {
   logStreamName: string;
 }
 
+interface DocumentChunk {
+  text: string;
+  metadata: Record<string, any>;
+  score: number;
+}
+
 /**
  * Main DocumentsTab component
  * Manages the document list, filtering, sorting, and operations
@@ -236,7 +241,7 @@ const DocumentsTab: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
-  const [topics, setTopics] = useState<{ value: string; label: string }[]>([]);
+  const [topics, setTopics] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteType, setDeleteType] = useState<'single' | 'bulk'>('single');
   const [documentToDelete, setDocumentToDelete] = useState<{ topic: string; filename: string } | null>(null);
@@ -249,11 +254,13 @@ const DocumentsTab: React.FC = () => {
   const rowsPerPage = 10;
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [processingNotifications, setProcessingNotifications] = useState<ProcessingNotification[]>([]);
-  const { addJob } = useProcessing();
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<{ topic: string; filename: string } | null>(null);
   const [processingLogs, setProcessingLogs] = useState<ProcessingLog[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [showChunksModal, setShowChunksModal] = useState(false);
+  const [documentChunks, setDocumentChunks] = useState<DocumentChunk[]>([]);
+  const [isLoadingChunks, setIsLoadingChunks] = useState(false);
 
   /**
    * Fetches all available topics
@@ -266,14 +273,8 @@ const DocumentsTab: React.FC = () => {
       // Filter out empty strings and duplicates before mapping
       const uniqueTopics = Array.from(new Set(topicsList.filter(Boolean)));
       console.log('Unique topics after filtering:', uniqueTopics);
-      setTopics(uniqueTopics.map(topic => ({
-        value: topic,
-        label: topic
-      })));
-      console.log('Final topics state:', uniqueTopics.map(topic => ({
-        value: topic,
-        label: topic
-      })));
+      setTopics(uniqueTopics);
+      console.log('Final topics state:', uniqueTopics);
     } catch (error) {
       console.error('Error fetching topics:', error);
       toast.error('Failed to load topics');
@@ -587,14 +588,10 @@ const DocumentsTab: React.FC = () => {
   const handleEdit = async (topic: string, filename: string, content: string) => {
     try {
       await updateFileContent(topic, filename, content);
-      // Add the job to processing context
-      addJob({
-        topic,
-        filename,
-        status: 'processing',
-        message: 'Updating document...',
-        timestamp: new Date().toISOString()
-      });
+      toast.success('Document updated successfully');
+      setShowEditModal(false);
+      setEditingFile(null);
+      fetchDocuments();
     } catch (error) {
       console.error('Error updating document:', error);
       toast.error('Failed to update document');
@@ -607,12 +604,28 @@ const DocumentsTab: React.FC = () => {
    */
   const handleEditClick = async (topic: string, filename: string) => {
     try {
+      setIsLoading(true);
       const content = await getFileContent(topic, filename);
+      
+      // Check if content is valid
+      if (!content || content.trim() === '') {
+        toast.error('Unable to load document content. The file may be corrupted or in an unsupported format.');
+        return;
+      }
+
+      // Check if content contains binary data
+      if (/[\x00-\x08\x0E-\x1F]/.test(content)) {
+        toast.error('This file appears to be in binary format and cannot be displayed. Please download it instead.');
+        return;
+      }
+
       setEditingFile({ topic, filename, content });
       setShowEditModal(true);
     } catch (error) {
       console.error('Error getting file content:', error);
-      toast.error(`Failed to open "${filename}" for editing`);
+      toast.error(`Failed to open "${filename}". The file may be too large or in an unsupported format.`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -624,15 +637,6 @@ const DocumentsTab: React.FC = () => {
     if (!editingFile) return;
 
     try {
-      // Add job to processing context
-      addJob({
-        topic: editingFile.topic,
-        filename: editingFile.filename,
-        status: 'processing',
-        message: 'Updating document...',
-        timestamp: new Date().toISOString()
-      });
-
       await updateFileContent(editingFile.topic, editingFile.filename, content);
       toast.success('Document updated successfully');
       setShowEditModal(false);
@@ -701,23 +705,28 @@ const DocumentsTab: React.FC = () => {
 
   /**
    * Handles document viewing
-   * Opens document in view-only mode
+   * Opens document in view-only mode and shows chunks
    */
   const handleViewClick = async (topic: string, filename: string) => {
     try {
-      // Add the job to processing context
-      addJob({
-        topic,
-        filename,
-        status: 'processing',
-        message: 'Checking file status...',
-        timestamp: new Date().toISOString()
-      });
-
+      // Get document content
       const content = await getFileContent(topic, filename);
       setEditingFile({ topic, filename, content });
       setIsViewOnly(true);
       setShowEditModal(true);
+
+      // Get document chunks
+      setIsLoadingChunks(true);
+      try {
+        const { chunks } = await getDocumentChunks(topic, filename);
+        setDocumentChunks(chunks);
+        setShowChunksModal(true);
+      } catch (error) {
+        console.error('Error getting document chunks:', error);
+        toast.error('Failed to load document chunks');
+      } finally {
+        setIsLoadingChunks(false);
+      }
     } catch (error) {
       console.error('Error getting file content:', error);
       toast.error(`Failed to open "${filename}" for viewing`);
@@ -754,43 +763,35 @@ const DocumentsTab: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <>
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>Documents</CardTitle>
+          <h3 className="text-xl font-semibold">Documents</h3>
           <div className="mt-2 sm:mt-0 flex flex-row items-center gap-4">
             <div className="w-48">
-              <Input
-                type="text"
-                placeholder="Search by filename..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1); // Reset to first page when searching
-                }}
-                className="w-full"
-              />
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Search by filename..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
             <div className="w-48">
               <Select
-                options={topics}
-                value={selectedTopic}
-                onChange={(selectedValue) => setSelectedTopic(selectedValue)}
-                fullWidth
+                value={selectedTopic || ''}
+                onChange={setSelectedTopic}
+                options={[
+                  { value: '', label: 'All Topics' },
+                  ...topics.map(topic => ({ value: topic, label: topic }))
+                ]}
               />
             </div>
-            {selectedDocuments.size > 0 && (
-              <Button
-                variant="danger"
-                onClick={handleBulkDelete}
-                icon={<Trash2 className="h-4 w-4" />}
-              >
-                Delete Selected ({selectedDocuments.size})
-              </Button>
-            )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {isLoading ? (
             <div className="flex justify-center items-center py-12">
               <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
@@ -806,180 +807,183 @@ const DocumentsTab: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <table className="w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="w-12 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      checked={selectedDocuments.size === documents.length}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                  </th>
+                  <th 
+                    className="w-1/4 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('filename')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Filename
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    className="w-1/6 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('topic')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Topic
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    className="w-1/6 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('lastModified')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Last Modified
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th 
+                    className="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('size')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Size
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th className="w-32 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Chunks
+                  </th>
+                  <th className="w-32 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {getPaginatedDocuments().map((doc, index) => (
+                  <tr key={`${doc.topic}-${doc.filename}-${index}`}>
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <input
                         type="checkbox"
-                        checked={selectedDocuments.size === documents.length}
-                        onChange={toggleSelectAll}
+                        checked={selectedDocuments.has(`${doc.topic}/${doc.filename}`)}
+                        onChange={() => toggleDocumentSelection(doc.topic, doc.filename)}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('filename')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Filename
-                        <ArrowUpDown className="h-4 w-4" />
+                    </td>
+                    <td className="px-4 py-4 text-sm font-medium text-gray-900">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleViewClick(doc.topic, doc.filename)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline focus:outline-none truncate"
+                        >
+                          {doc.filename}
+                        </button>
+                        {doc.ingestionStatus?.status === 'processing' && (
+                          <span className="text-yellow-500 flex-shrink-0" title="Document is being processed">⏳</span>
+                        )}
+                        {doc.ingestionStatus?.status === 'complete' && (
+                          <span className="text-green-500 flex-shrink-0" title="Document is ready">✅</span>
+                        )}
                       </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('topic')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Topic
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('lastModified')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Last Modified
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('size')}
-                    >
-                      <div className="flex items-center gap-1">
-                        Size
-                        <ArrowUpDown className="h-4 w-4" />
-                      </div>
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {getPaginatedDocuments().map((doc, index) => (
-                    <tr key={`${doc.topic}-${doc.filename}-${index}`}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <input
-                          type="checkbox"
-                          checked={selectedDocuments.has(`${doc.topic}/${doc.filename}`)}
-                          onChange={() => toggleDocumentSelection(doc.topic, doc.filename)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleViewClick(doc.topic, doc.filename)}
-                            className="text-blue-600 hover:text-blue-800 hover:underline focus:outline-none"
-                          >
-                            {doc.filename}
-                          </button>
-                          {doc.ingestionStatus?.status === 'processing' && (
-                            <span className="text-yellow-500" title="Document is being processed">⏳</span>
-                          )}
-                          {doc.ingestionStatus?.status === 'complete' && (
-                            <span className="text-green-500" title="Document is ready">✅</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <Badge variant="default">{doc.topic}</Badge>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(doc.lastModified)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatFileSize(doc.size)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => handleEditClick(doc.topic, doc.filename)}
-                            icon={<Edit2 className="h-4 w-4" />}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => handleDelete(doc.topic, doc.filename)}
-                            isLoading={isDeleting === doc.filename}
-                            icon={<Trash2 className="h-4 w-4" />}
-                          >
-                            Delete
-                          </Button>
-                          <button
-                            onClick={() => handleViewLogs(doc.topic, doc.filename)}
-                            className="text-gray-600 hover:text-gray-800"
-                            title="View Processing Logs"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              {/* Pagination Controls */}
-              {totalDocuments > 0 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-                  <div className="flex items-center">
-                    <p className="text-sm text-gray-700">
-                      Showing{' '}
-                      <span className="font-medium">
-                        {totalDocuments === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}
-                      </span>
-                      {' '}-{' '}
-                      <span className="font-medium">
-                        {Math.min(currentPage * rowsPerPage, totalDocuments)}
-                      </span>
-                      {' '}of{' '}
-                      <span className="font-medium">{totalDocuments}</span>
-                      {' '}documents
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      Previous
-                    </Button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-500">
+                      <Badge variant="default">{doc.topic}</Badge>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-500">
+                      {formatDate(doc.lastModified)}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-500">
+                      {formatFileSize(doc.size)}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-500">
                       <Button
-                        key={page}
-                        variant={currentPage === page ? "primary" : "ghost"}
-                        onClick={() => handlePageChange(page)}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewClick(doc.topic, doc.filename)}
+                        className="flex items-center gap-1 w-full justify-center"
                       >
-                        {page}
+                        <FileText className="h-4 w-4" />
+                        <span className="hidden sm:inline">View Chunks</span>
                       </Button>
-                    ))}
-                    <Button
-                      variant="ghost"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
+                    </td>
+                    <td className="px-4 py-4 text-right text-sm font-medium">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleEdit(doc.topic, doc.filename, doc.content || '')}
+                          icon={<Edit2 className="h-4 w-4" />}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleDelete(doc.topic, doc.filename)}
+                          icon={<Trash2 className="h-4 w-4" />}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {/* Pagination Controls */}
+          {totalDocuments > 0 && (
+            <div className="flex items-center justify-between px-4 py-4 border-t border-gray-200">
+              <div className="flex items-center">
+                <p className="text-sm text-gray-700">
+                  Showing{' '}
+                  <span className="font-medium">
+                    {totalDocuments === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}
+                  </span>
+                  {' '}-{' '}
+                  <span className="font-medium">
+                    {Math.min(currentPage * rowsPerPage, totalDocuments)}
+                  </span>
+                  {' '}of{' '}
+                  <span className="font-medium">{totalDocuments}</span>
+                  {' '}documents
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "primary" : "ghost"}
+                    onClick={() => handlePageChange(page)}
+                  >
+                    {page}
+                  </Button>
+                ))}
+                <Button
+                  variant="ghost"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
+      {/* Modals */}
       <ConfirmationModal
         isOpen={showDeleteModal}
         onClose={() => {
@@ -1010,7 +1014,7 @@ const DocumentsTab: React.FC = () => {
         isViewOnly={isViewOnly}
       />
 
-      {/* Add processing notifications */}
+      {/* Processing Notifications */}
       {processingNotifications.map(notification => (
         <ProcessingNotification
           key={`${notification.topic}/${notification.filename}`}
@@ -1062,7 +1066,60 @@ const DocumentsTab: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+
+      {/* Chunks Modal */}
+      {showChunksModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-3/4 max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                Document Chunks: {editingFile?.filename}
+              </h3>
+              <button
+                onClick={() => setShowChunksModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="flex-grow overflow-auto bg-gray-100 rounded p-4">
+              {isLoadingChunks ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                </div>
+              ) : documentChunks.length > 0 ? (
+                <div className="space-y-4">
+                  {documentChunks.map((chunk, index) => (
+                    <div key={index} className="bg-white p-4 rounded shadow">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-500">Chunk {index + 1}</span>
+                        <Badge variant="default">Score: {chunk.score.toFixed(2)}</Badge>
+                      </div>
+                      <p className="text-gray-800 whitespace-pre-wrap">{chunk.text}</p>
+                      {Object.keys(chunk.metadata).length > 0 && (
+                        <div className="mt-2 text-sm text-gray-500">
+                          <strong>Metadata:</strong>
+                          <pre className="mt-1 bg-gray-50 p-2 rounded">
+                            {JSON.stringify(chunk.metadata, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-500 text-center">
+                  No chunks available for this document
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

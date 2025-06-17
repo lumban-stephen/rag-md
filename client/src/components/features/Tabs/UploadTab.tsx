@@ -117,6 +117,13 @@ const UploadTab: React.FC = () => {
    * @returns Whether the file is valid
    */
   const validateFile = (file: File): boolean => {
+    // Check file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+      toast.error('File size exceeds 10MB limit. Please upload a smaller file.');
+      return false;
+    }
+
     // Check if file is an image
     if (file.type.startsWith('image/')) {
       toast.error('Image files are not allowed. Please upload text files only.');

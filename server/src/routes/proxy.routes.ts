@@ -128,4 +128,45 @@ router.post('/reindex', async (req, res) => {
   }
 });
 
+/**
+ * Get chunks for a specific document
+ * @route GET /api/proxy/opensearch/chunks/:topic/:filename
+ */
+router.get('/opensearch/chunks/:topic/:filename', async (req, res) => {
+  try {
+    const { topic, filename } = req.params;
+    console.log('Getting chunks for document:', { topic, filename });
+    
+    // Use a query that matches the exact filename to get all chunks
+    const response = await axios.post(`${API_GATEWAY_URL}/search/${topic}`, {
+      query: `filename:${filename}`,
+      size: 100 // Get up to 100 chunks
+    });
+    
+    if (!response.data || !response.data.results) {
+      console.warn('Unexpected response structure:', response.data);
+      return res.json({ chunks: [] });
+    }
+    
+    // Transform the results to include chunk information
+    const chunks = response.data.results.map((item: any) => ({
+      text: item.text_chunk || '',
+      metadata: item.metadata || {},
+      score: item.score || 1.0
+    }));
+    
+    res.json({ chunks });
+  } catch (error) {
+    console.error('Error getting document chunks:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+    }
+    res.status(500).json({ error: 'Failed to get document chunks' });
+  }
+});
+
 export default router; 

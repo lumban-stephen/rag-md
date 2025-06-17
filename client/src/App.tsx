@@ -1,7 +1,6 @@
 /**
  * Main Application Component
  * Handles the overall layout and tab-based navigation of the application
- * Wraps the entire app in a ProcessingProvider for global state management
  */
 import React, { useState } from 'react';
 import { Toaster } from 'react-hot-toast';
@@ -12,9 +11,7 @@ import UploadTab from './components/features/Tabs/UploadTab.js';
 import DocumentsTab from './components/features/Tabs/DocumentsTab.js';
 import SearchTab from './components/features/Tabs/SearchTab.js';
 import LogsTab from './components/features/Tabs/LogsTab.js';
-import ProcessingTab from './components/features/Tabs/ProcessingTab.js';
-import { Search, FileText, Upload, Loader2, List } from 'lucide-react';
-import { ProcessingProvider } from './contexts/ProcessingContext.js';
+import { Search, FileText, Upload, List } from 'lucide-react';
 
 function App() {
   // State to track the currently active tab
@@ -32,8 +29,6 @@ function App() {
         return <DocumentsTab />;
       case 'search':
         return <SearchTab />;
-      case 'processing':
-        return <ProcessingTab />;
       case 'logs':
         return <LogsTab />;
       default:
@@ -46,33 +41,30 @@ function App() {
     { id: 'search', label: 'Search', icon: Search },
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'upload', label: 'Upload', icon: Upload },
-    { id: 'processing', label: 'Processing', icon: Loader2 },
     { id: 'logs', label: 'Logs', icon: List }
   ];
 
   return (
-    <ProcessingProvider>
-      <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
-        {/* Toast notifications */}
-        <Toaster position="top-right" />
-        
-        {/* Application header */}
-        <Header />
-        
-        {/* Tab navigation */}
-        <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
-        
-        {/* Main content area */}
-        <main className="flex-grow">
-          <div className="container mx-auto max-w-7xl bg-[hsl(var(--background))] p-8 border border-[hsl(var(--border))]">
-            {renderTabContent()}
-          </div>
-        </main>
-        
-        {/* Application footer */}
-        <Footer />
-      </div>
-    </ProcessingProvider>
+    <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+      {/* Toast notifications */}
+      <Toaster position="top-right" />
+      
+      {/* Application header */}
+      <Header />
+      
+      {/* Tab navigation */}
+      <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
+      
+      {/* Main content area */}
+      <main className="flex-grow w-full flex justify-center">
+        <div className="w-full min-w-[80%] max-w-[80%]">
+          {renderTabContent()}
+        </div>
+      </main>
+      
+      {/* Application footer */}
+      <Footer />
+    </div>
   );
 }
 

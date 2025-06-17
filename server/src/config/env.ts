@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const config = {
-  port: process.env.PORT || 3000,
+  port: process.env.PORT || 3010,
   nodeEnv: process.env.NODE_ENV || 'development',
   aws: {
     region: process.env.AWS_REGION || 'us-east-1',

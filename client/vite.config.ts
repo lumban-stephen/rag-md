@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => {
     base: '/',
     define: {
       'process.env': {
-        VITE_LOCAL_API_URL: JSON.stringify(env.VITE_LOCAL_API_URL || 'http://172.28.64.1:3000/api')
+        VITE_LOCAL_API_URL: JSON.stringify(env.VITE_LOCAL_API_URL || 'http://localhost:3010/api')
       }
     }
   };

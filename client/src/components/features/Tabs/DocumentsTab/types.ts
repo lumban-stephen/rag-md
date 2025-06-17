@@ -12,15 +12,6 @@ export interface DocumentType {
   };
 }
 
-export interface ProcessingNotificationType {
-  id: string;
-  topic: string;
-  filename: string;
-  status: 'pending' | 'processing' | 'complete' | 'error';
-  message: string;
-  timestamp?: string;
-}
-
 export interface DocumentsTableProps {
   documents: DocumentType[];
   isLoading: boolean;
@@ -33,11 +24,6 @@ export interface EditModalProps {
   document: DocumentType;
   onClose: () => void;
   onSubmit: (document: DocumentType) => Promise<void>;
-}
-
-export interface ProcessingNotificationProps {
-  notifications: ProcessingNotificationType[];
-  onRemove: (id: string) => void;
 }
 
 export interface PaginationProps {
