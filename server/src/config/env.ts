@@ -23,6 +23,9 @@ export const config = {
   cors: {
     origin: process.env.CORS_ORIGIN || ['http://172.28.64.1:5173', 'http://localhost:5173'],
     credentials: true
+  },
+  apiGateway: {
+    url: process.env.VITE_API_BASE_URL || 'https://r0ts5l6wz4.execute-api.us-east-1.amazonaws.com/dev'
   }
 } as const;
 

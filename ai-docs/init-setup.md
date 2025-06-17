@@ -207,4 +207,16 @@ Created `server/src/routes/aws/s3.routes.ts` with endpoints:
    - Define shared types
    - Create utility functions
    - Set up constants
-   - Add validation schemas 
+   - Add validation schemas
+
+## Environment Configuration
+
+### Root Level Environment Variables
+- `.env` file exists at the root of the project (gitignored)
+- Contains both frontend and backend configuration
+- Key configurations:
+  - Server settings (PORT, NODE_ENV)
+  - AWS credentials and settings
+  - API Gateway URL
+  - Frontend API endpoints
+- Note: The server's proxy routes use the API Gateway URL for chunk counting and search operations 

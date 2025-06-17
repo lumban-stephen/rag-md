@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Trash2, RefreshCw, AlertCircle, ArrowUpDown, Download, Edit2, Loader2, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card.js';
@@ -9,6 +9,7 @@ import ConfirmationModal from '../ui/ConfirmationModal.js';
 import { getDocuments, deleteDocument, deleteDocuments, getDownloadUrl, getFileContent, updateFileContent, checkIngestionStatus, getAllTopics, getProcessingLogs, getDocumentChunks } from '../../../services/api/index.js';
 import toast from 'react-hot-toast';
 import Input from '../ui/Input.js';
+import { LoadingContext } from '../../../App';
 
 /**
  * Represents a document in the system
@@ -240,10 +241,8 @@ const DocumentsTab: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
   const [topics, setTopics] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteType, setDeleteType] = useState<'single' | 'bulk'>('single');
   const [documentToDelete, setDocumentToDelete] = useState<{ topic: string; filename: string } | null>(null);
   const [sortField, setSortField] = useState<SortField>('lastModified');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -258,9 +257,7 @@ const DocumentsTab: React.FC = () => {
   const [selectedDocument, setSelectedDocument] = useState<{ topic: string; filename: string } | null>(null);
   const [processingLogs, setProcessingLogs] = useState<ProcessingLog[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
-  const [showChunksModal, setShowChunksModal] = useState(false);
-  const [documentChunks, setDocumentChunks] = useState<DocumentChunk[]>([]);
-  const [isLoadingChunks, setIsLoadingChunks] = useState(false);
+  const { setIsLoading: setGlobalLoading } = useContext(LoadingContext);
 
   /**
    * Fetches all available topics
@@ -327,32 +324,11 @@ const DocumentsTab: React.FC = () => {
   }, [topics]);
 
   /**
-   * Initiates the document deletion process
-   * Shows confirmation modal for single document deletion
+   * Handles document deletion
+   * Shows confirmation modal and deletes document
    */
   const handleDelete = async (topic: string, filename: string) => {
-    setDeleteType('single');
     setDocumentToDelete({ topic, filename });
-    setShowDeleteModal(true);
-  };
-
-  /**
-   * Initiates bulk document deletion
-   * Shows confirmation modal for multiple document deletion
-   */
-  const handleBulkDelete = () => {
-    if (selectedDocuments.size === 0) {
-      toast.error('Please select documents to delete');
-      return;
-    }
-
-    // Only prevent deletion of all documents when in "All Topics" view
-    if (selectedTopic === '' && selectedDocuments.size === documents.length) {
-      toast.error('Cannot delete all documents at once. Please select a subset of documents.');
-      return;
-    }
-
-    setDeleteType('bulk');
     setShowDeleteModal(true);
   };
 
@@ -361,9 +337,11 @@ const DocumentsTab: React.FC = () => {
    * Handles both single and bulk deletions
    */
   const executeDelete = async () => {
-    if (deleteType === 'single' && documentToDelete) {
+    if (documentToDelete) {
       setIsDeleting(documentToDelete.filename);
       try {
+        // Show global loading spinner
+        setGlobalLoading(true);
         await deleteDocument(documentToDelete.topic, documentToDelete.filename);
         setDocuments(documents.filter(doc => doc.filename !== documentToDelete.filename));
         toast.success(`"${documentToDelete.filename}" has been deleted`, {
@@ -392,72 +370,9 @@ const DocumentsTab: React.FC = () => {
         });
       } finally {
         setIsDeleting(null);
+        // Hide global loading spinner
+        setGlobalLoading(false);
       }
-    } else if (deleteType === 'bulk') {
-      try {
-        const documentsToDelete = documents.filter(doc => 
-          selectedDocuments.has(`${doc.topic}/${doc.filename}`)
-        );
-
-        await deleteDocuments(documentsToDelete);
-        setDocuments(documents.filter(doc => 
-          !selectedDocuments.has(`${doc.topic}/${doc.filename}`)
-        ));
-        setSelectedDocuments(new Set());
-        
-        toast.success(`${documentsToDelete.length} document(s) have been deleted`, {
-          duration: 4000,
-          icon: '🗑️',
-          style: {
-            background: '#10B981',
-            color: '#fff',
-            padding: '16px',
-            borderRadius: '8px',
-          },
-        });
-        setShowDeleteModal(false);
-      } catch (error) {
-        console.error('Error in handleBulkDelete:', error);
-        toast.error('Failed to delete selected documents', {
-          duration: 4000,
-          icon: '❌',
-          style: {
-            background: '#EF4444',
-            color: '#fff',
-            padding: '16px',
-            borderRadius: '8px',
-          },
-        });
-      }
-    }
-  };
-
-  /**
-   * Toggles selection of a single document
-   * Updates the selectedDocuments set
-   */
-  const toggleDocumentSelection = (topic: string, filename: string) => {
-    const key = `${topic}/${filename}`;
-    const newSelected = new Set(selectedDocuments);
-    if (newSelected.has(key)) {
-      newSelected.delete(key);
-    } else {
-      newSelected.add(key);
-    }
-    setSelectedDocuments(newSelected);
-  };
-
-  /**
-   * Toggles selection of all documents
-   * Selects or deselects all documents based on current state
-   */
-  const toggleSelectAll = () => {
-    if (selectedDocuments.size === documents.length) {
-      setSelectedDocuments(new Set());
-    } else {
-      setSelectedDocuments(new Set(
-        documents.map(doc => `${doc.topic}/${doc.filename}`)
-      ));
     }
   };
 
@@ -582,19 +497,33 @@ const DocumentsTab: React.FC = () => {
   };
 
   /**
-   * Handles document editing
-   * Fetches content and shows edit modal
+   * Handles document viewing
+   * Opens document in view-only mode
    */
-  const handleEdit = async (topic: string, filename: string, content: string) => {
+  const handleViewClick = async (topic: string, filename: string) => {
     try {
-      await updateFileContent(topic, filename, content);
-      toast.success('Document updated successfully');
-      setShowEditModal(false);
-      setEditingFile(null);
-      fetchDocuments();
+      // Show global loading spinner
+      setGlobalLoading(true);
+      
+      // Get document content
+      const content = await getFileContent(topic, filename);
+      
+      // Set up the editing file state for viewing
+      setEditingFile({
+        topic,
+        filename,
+        content
+      });
+      
+      // Set view-only mode and show the modal
+      setIsViewOnly(true);
+      setShowEditModal(true);
     } catch (error) {
-      console.error('Error updating document:', error);
-      toast.error('Failed to update document');
+      console.error('Error getting file content:', error);
+      toast.error(`Failed to open "${filename}" for viewing`);
+    } finally {
+      // Hide global loading spinner
+      setGlobalLoading(false);
     }
   };
 
@@ -604,8 +533,16 @@ const DocumentsTab: React.FC = () => {
    */
   const handleEditClick = async (topic: string, filename: string) => {
     try {
-      setIsLoading(true);
+      // Show global loading spinner
+      setGlobalLoading(true);
+      
+      // Get document content
       const content = await getFileContent(topic, filename);
+      
+      // Debug logging
+      console.log('File content length:', content.length);
+      console.log('First 100 characters:', content.substring(0, 100));
+      console.log('Content type:', typeof content);
       
       // Check if content is valid
       if (!content || content.trim() === '') {
@@ -613,19 +550,41 @@ const DocumentsTab: React.FC = () => {
         return;
       }
 
-      // Check if content contains binary data
-      if (/[\x00-\x08\x0E-\x1F]/.test(content)) {
-        toast.error('This file appears to be in binary format and cannot be displayed. Please download it instead.');
+      // Check file size (50KB limit)
+      const contentSizeInKB = content.length / 1024;
+      if (contentSizeInKB > 50) {
+        toast.error(`File size (${contentSizeInKB.toFixed(2)}KB) exceeds the 50KB limit. Please reupload the file instead.`);
         return;
       }
 
+      // Log any binary characters found
+      const binaryChars = content.match(/[\x00-\x06\x0B\x0C\x0E-\x1F]/g);
+      if (binaryChars) {
+        console.log('Found binary characters:', binaryChars.map(c => `0x${c.charCodeAt(0).toString(16)}`));
+      }
+
+      // More lenient binary detection - only check for actual binary content
+      // Allow common text file characters including newlines, tabs, and some control characters
+      if (/[\x00-\x06\x0B\x0C\x0E-\x1F]/.test(content)) {
+        console.error('Binary content detected in file:', {
+          filename,
+          topic,
+          contentLength: content.length,
+          binaryChars: binaryChars?.map(c => `0x${c.charCodeAt(0).toString(16)}`)
+        });
+        toast.error('This file contains binary content and cannot be edited. Please reupload the file instead.');
+        return;
+      }
+      
       setEditingFile({ topic, filename, content });
+      setIsViewOnly(false);
       setShowEditModal(true);
     } catch (error) {
       console.error('Error getting file content:', error);
       toast.error(`Failed to open "${filename}". The file may be too large or in an unsupported format.`);
     } finally {
-      setIsLoading(false);
+      // Hide global loading spinner
+      setGlobalLoading(false);
     }
   };
 
@@ -699,38 +658,6 @@ const DocumentsTab: React.FC = () => {
    */
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // Reset selection when changing pages
-    setSelectedDocuments(new Set());
-  };
-
-  /**
-   * Handles document viewing
-   * Opens document in view-only mode and shows chunks
-   */
-  const handleViewClick = async (topic: string, filename: string) => {
-    try {
-      // Get document content
-      const content = await getFileContent(topic, filename);
-      setEditingFile({ topic, filename, content });
-      setIsViewOnly(true);
-      setShowEditModal(true);
-
-      // Get document chunks
-      setIsLoadingChunks(true);
-      try {
-        const { chunks } = await getDocumentChunks(topic, filename);
-        setDocumentChunks(chunks);
-        setShowChunksModal(true);
-      } catch (error) {
-        console.error('Error getting document chunks:', error);
-        toast.error('Failed to load document chunks');
-      } finally {
-        setIsLoadingChunks(false);
-      }
-    } catch (error) {
-      console.error('Error getting file content:', error);
-      toast.error(`Failed to open "${filename}" for viewing`);
-    }
   };
 
   /**
@@ -760,6 +687,23 @@ const DocumentsTab: React.FC = () => {
     } finally {
       setIsLoadingLogs(false);
     }
+  };
+
+  /**
+   * Handles reuploading a document
+   * Shows a toast notification
+   */
+  const handleReuploadClick = (topic: string, filename: string) => {
+    toast.error('Please reupload this file to process it into chunks', {
+      duration: 4000,
+      icon: '⚠️',
+      style: {
+        background: '#F59E0B',
+        color: '#fff',
+        padding: '16px',
+        borderRadius: '8px',
+      },
+    });
   };
 
   return (
@@ -811,12 +755,7 @@ const DocumentsTab: React.FC = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="w-12 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <input
-                      type="checkbox"
-                      checked={selectedDocuments.size === documents.length}
-                      onChange={toggleSelectAll}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
+                    #
                   </th>
                   <th 
                     className="w-1/4 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -854,10 +793,7 @@ const DocumentsTab: React.FC = () => {
                       <ArrowUpDown className="h-4 w-4" />
                     </div>
                   </th>
-                  <th className="w-32 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Chunks
-                  </th>
-                  <th className="w-32 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-32 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -865,13 +801,8 @@ const DocumentsTab: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {getPaginatedDocuments().map((doc, index) => (
                   <tr key={`${doc.topic}-${doc.filename}-${index}`}>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={selectedDocuments.has(`${doc.topic}/${doc.filename}`)}
-                        onChange={() => toggleDocumentSelection(doc.topic, doc.filename)}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
+                    <td className="px-4 py-4 text-sm text-gray-500">
+                      {(currentPage - 1) * rowsPerPage + index + 1}
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900">
                       <div className="flex items-center gap-2">
@@ -898,23 +829,12 @@ const DocumentsTab: React.FC = () => {
                     <td className="px-4 py-4 text-sm text-gray-500">
                       {formatFileSize(doc.size)}
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-500">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewClick(doc.topic, doc.filename)}
-                        className="flex items-center gap-1 w-full justify-center"
-                      >
-                        <FileText className="h-4 w-4" />
-                        <span className="hidden sm:inline">View Chunks</span>
-                      </Button>
-                    </td>
-                    <td className="px-4 py-4 text-right text-sm font-medium">
-                      <div className="flex justify-end gap-2">
+                    <td className="px-4 py-4 text-center text-sm font-medium">
+                      <div className="flex justify-center gap-2">
                         <Button
                           variant="primary"
                           size="sm"
-                          onClick={() => handleEdit(doc.topic, doc.filename, doc.content || '')}
+                          onClick={() => handleEditClick(doc.topic, doc.filename)}
                           icon={<Edit2 className="h-4 w-4" />}
                         >
                           Edit
@@ -991,14 +911,12 @@ const DocumentsTab: React.FC = () => {
           setDocumentToDelete(null);
         }}
         onConfirm={executeDelete}
-        title={deleteType === 'single' ? 'Delete Document' : 'Delete Documents'}
+        title="Delete Document"
         message={
-          deleteType === 'single'
-            ? `Are you sure you want to delete "${documentToDelete?.filename}"? This action cannot be undone.`
-            : `Are you sure you want to delete ${selectedDocuments.size} selected document(s)? This action cannot be undone.`
+          `Are you sure you want to delete "${documentToDelete?.filename}"? This action cannot be undone.`
         }
         confirmText="confirm"
-        confirmButtonText={deleteType === 'single' ? 'Delete Document' : 'Delete Documents'}
+        confirmButtonText="Delete Document"
       />
 
       <EditModal
@@ -1060,59 +978,6 @@ const DocumentsTab: React.FC = () => {
               ) : (
                 <div className="text-gray-500 text-center">
                   No logs available for this document
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Chunks Modal */}
-      {showChunksModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-3/4 max-h-[80vh] flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">
-                Document Chunks: {editingFile?.filename}
-              </h3>
-              <button
-                onClick={() => setShowChunksModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="flex-grow overflow-auto bg-gray-100 rounded p-4">
-              {isLoadingChunks ? (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-                </div>
-              ) : documentChunks.length > 0 ? (
-                <div className="space-y-4">
-                  {documentChunks.map((chunk, index) => (
-                    <div key={index} className="bg-white p-4 rounded shadow">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-500">Chunk {index + 1}</span>
-                        <Badge variant="default">Score: {chunk.score.toFixed(2)}</Badge>
-                      </div>
-                      <p className="text-gray-800 whitespace-pre-wrap">{chunk.text}</p>
-                      {Object.keys(chunk.metadata).length > 0 && (
-                        <div className="mt-2 text-sm text-gray-500">
-                          <strong>Metadata:</strong>
-                          <pre className="mt-1 bg-gray-50 p-2 rounded">
-                            {JSON.stringify(chunk.metadata, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-gray-500 text-center">
-                  No chunks available for this document
                 </div>
               )}
             </div>
