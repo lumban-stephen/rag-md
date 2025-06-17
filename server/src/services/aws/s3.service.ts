@@ -49,6 +49,25 @@ export class S3Service {
     return this.fileContentService.getFileContent(topic, filename);
   }
 
+  /**
+   * Checks if a file exists in either processed or uploads directory
+   * @param topic - The topic of the document
+   * @param filename - Name of the file to check
+   * @returns True if the file exists in either directory
+   */
+  async checkFileExists(topic: string, filename: string): Promise<boolean> {
+    try {
+      // Try to get the file content - if it succeeds, the file exists
+      await this.getFileContent(topic, filename);
+      return true;
+    } catch (error: any) {
+      if (error.message.includes('not found')) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
   async updateFileContent(topic: string, filename: string, content: string): Promise<void> {
     await this.fileContentService.updateFileContent(topic, filename, content);
     await this.ingestionStatusService.waitForIngestion(topic, filename);

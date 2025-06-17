@@ -4,14 +4,16 @@
  * Supports drag-and-drop and manual file selection
  * Handles file validation, topic management, and upload progress
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UploadCloud, Check, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/Card';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import { TopicSelect } from '../ui/Select';
-import { generateUploadUrl, uploadFile, getDocuments } from '../../../services/api';
+import { generateUploadUrl, uploadFile, getDocuments, checkFileExists } from '../../../services/api';
 import toast from 'react-hot-toast';
+import { LoadingContext } from '../../../App';
+import ConfirmationModal from '../ui/ConfirmationModal';
 
 /**
  * Represents a document in the system
@@ -36,6 +38,7 @@ interface DocumentsResponse {
 }
 
 const UploadTab: React.FC = () => {
+  const { setIsLoading } = React.useContext(LoadingContext);
   // State management for form fields and upload process
   const [topic, setTopic] = useState('');
   const [filename, setFilename] = useState('');
@@ -44,6 +47,9 @@ const UploadTab: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [topics, setTopics] = useState<{ value: string; label: string }[]>([]);
   const [isLoadingTopics, setIsLoadingTopics] = useState(true);
+  const [fileExists, setFileExists] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Accepted file types and MIME types for validation
   const acceptedFileTypes = '.pdf,.txt,.md';
@@ -205,12 +211,61 @@ const UploadTab: React.FC = () => {
   };
 
   /**
+   * Checks if a file with the same name exists in the selected topic
+   */
+  const checkExistingFile = async () => {
+    if (!topic || !filename) {
+      setFileExists(false);
+      return;
+    }
+
+    try {
+      const exists = await checkFileExists(topic, filename);
+      setFileExists(exists);
+    } catch (error) {
+      console.error('Error checking file existence:', error);
+    }
+  };
+
+  // Check for existing file when topic or filename changes
+  useEffect(() => {
+    checkExistingFile();
+  }, [topic, filename]);
+
+  /**
    * Handles file upload process
    * Validates form fields, shows progress, and handles success/error states
    */
   const handleUpload = async () => {
     if (!topic || !filename || !file) {
       toast.error('Please fill all fields and select a file');
+      return;
+    }
+
+    // Check if file exists before proceeding
+    try {
+      setIsLoading(true);
+      const exists = await checkFileExists(topic, filename);
+      if (exists) {
+        setShowConfirmModal(true);
+      } else {
+        // If file doesn't exist, proceed with upload
+        await performUpload();
+      }
+    } catch (error) {
+      console.error('Error checking file existence:', error);
+      toast.error('Error checking if file exists. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Performs the actual file upload
+   */
+  const performUpload = async () => {
+    if (!file) {
+      toast.error('No file selected');
       return;
     }
 
@@ -243,6 +298,8 @@ const UploadTab: React.FC = () => {
         setFile(null);
         setUploadProgress(0);
         setIsUploading(false);
+        setFileExists(false);
+        setShowConfirmModal(false);
       }, 2000);
     } catch (error) {
       console.error('Upload error:', error);
@@ -250,6 +307,19 @@ const UploadTab: React.FC = () => {
       setIsUploading(false);
       setUploadProgress(0);
     }
+  };
+
+  /**
+   * Formats file size in bytes to human-readable format
+   * @param bytes - File size in bytes
+   * @returns Formatted size string (e.g., "1.5 MB")
+   */
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
@@ -279,6 +349,18 @@ const UploadTab: React.FC = () => {
               onChange={(e) => setFilename(e.target.value)}
               fullWidth
             />
+
+            {/* Warning message if file exists */}
+            {fileExists && (
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                <div className="flex items-center text-yellow-800">
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  <span className="text-sm">
+                    Warning: A file with this name already exists in this topic. Uploading will replace the existing file.
+                  </span>
+                </div>
+              </div>
+            )}
             
             {/* File upload area with drag and drop support */}
             <div className="mb-4">
@@ -293,15 +375,33 @@ const UploadTab: React.FC = () => {
               >
                 <div className="space-y-1 text-center flex flex-col justify-center items-center w-full">
                   <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="flex text-sm text-gray-600">
-                    <span className="text-blue-600 hover:text-blue-500">
-                      Upload a file
-                    </span>
-                    <p className="pl-1">or drag and drop</p>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    {acceptedFileTypes} up to 10MB
-                  </p>
+                  {file ? (
+                    <>
+                      <div className="flex flex-col items-center">
+                        <span className="text-sm font-medium text-gray-900">
+                          {file.name}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatFileSize(file.size)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Click or drag to replace
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex text-sm text-gray-600">
+                        <span className="text-blue-600 hover:text-blue-500">
+                          Upload a file
+                        </span>
+                        <p className="pl-1">or drag and drop</p>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        {acceptedFileTypes} up to 10MB
+                      </p>
+                    </>
+                  )}
                 </div>
                 <input
                   id="file-upload"
@@ -312,13 +412,6 @@ const UploadTab: React.FC = () => {
                   onChange={handleFileChange}
                 />
               </div>
-              {/* Selected file indicator */}
-              {file && (
-                <div className="mt-2 flex items-center text-sm text-gray-500">
-                  <Check className="h-4 w-4 text-green-500 mr-1" />
-                  {file.name}
-                </div>
-              )}
             </div>
             
             {uploadProgress > 0 && (
@@ -359,6 +452,21 @@ const UploadTab: React.FC = () => {
           </CardFooter>
         </Card>
       </div>
+      
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={() => {
+          setShowConfirmModal(false);
+          performUpload();
+        }}
+        title="Replace Existing File"
+        message={`A file named "${filename}" already exists in the "${topic}" topic. Uploading will replace the existing file and all its associated data. Are you sure you want to proceed?`}
+        confirmText="replace"
+        confirmButtonText="Replace File"
+        cancelButtonText="Cancel"
+      />
     </div>
   );
 };

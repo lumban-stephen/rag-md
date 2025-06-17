@@ -455,3 +455,18 @@ export const getDocumentChunks = async (topic: string, filename: string): Promis
     throw error;
   }
 };
+
+/**
+ * Check if a file exists in the system
+ */
+export const checkFileExists = async (topic: string, filename: string): Promise<boolean> => {
+  try {
+    const response = await api.get('/s3/check-file-exists', {
+      params: { topic, filename }
+    });
+    return response.data.exists;
+  } catch (error) {
+    console.error('Error checking file existence:', error);
+    throw error;
+  }
+};

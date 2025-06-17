@@ -317,4 +317,28 @@ router.get('/processing-logs', async (req, res) => {
   }
 });
 
+/**
+ * Check if a file exists in either processed or uploads directory
+ * @route GET /api/s3/check-file-exists
+ */
+router.get('/check-file-exists', async (req, res) => {
+  try {
+    const { topic, filename } = req.query;
+    
+    if (!topic || !filename) {
+      return res.status(400).json({ error: 'Topic and filename are required' });
+    }
+
+    const exists = await s3Service.checkFileExists(
+      topic as string,
+      filename as string
+    );
+    
+    res.json({ exists });
+  } catch (error) {
+    console.error('Error checking file existence:', error);
+    res.status(500).json({ error: 'Failed to check file existence' });
+  }
+});
+
 export default router; 
