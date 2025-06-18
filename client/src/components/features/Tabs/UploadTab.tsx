@@ -10,7 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/Card
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import { TopicSelect } from '../ui/Select';
-import { generateUploadUrl, uploadFile, getDocuments, checkFileExists } from '../../../services/api';
+import { generateUploadUrl, uploadFile, getDocuments, checkFileExists, getAllTopics } from '../../../services/api';
 import toast from 'react-hot-toast';
 import { LoadingContext } from '../../../App';
 import ConfirmationModal from '../ui/ConfirmationModal';
@@ -71,15 +71,11 @@ const UploadTab: React.FC = () => {
       console.log('Starting to fetch topics...');
       setIsLoadingTopics(true);
       try {
-        const response = await getDocuments();
-        console.log('API Response:', response);
+        const topicsList = await getAllTopics();
+        console.log('Received topics:', topicsList);
         
-        const documents = response?.documents || [];
-        console.log('Documents array:', documents);
-        
-        // Extract unique topics and sort them alphabetically
-        const uniqueTopics = Array.from(new Set(documents.map(doc => doc.topic)))
-          .filter(Boolean)
+        // Filter out empty strings and duplicates, then sort alphabetically
+        const uniqueTopics = Array.from(new Set(topicsList.filter(Boolean)))
           .sort((a, b) => a.localeCompare(b))
           .map(topic => ({ value: topic, label: topic }));
         
@@ -162,11 +158,8 @@ const UploadTab: React.FC = () => {
       const selectedFile = e.target.files[0];
       if (validateFile(selectedFile)) {
         setFile(selectedFile);
-        
-        // Auto-fill filename if not already set
-        if (!filename) {
-          setFilename(selectedFile.name);
-        }
+        setFileExists(false);
+        setFilename(selectedFile.name);
       } else {
         // Reset the input
         e.target.value = '';
@@ -196,11 +189,8 @@ const UploadTab: React.FC = () => {
       const droppedFile = e.dataTransfer.files[0];
       if (validateFile(droppedFile)) {
         setFile(droppedFile);
-        
-        // Auto-fill filename if not already set
-        if (!filename) {
-          setFilename(droppedFile.name);
-        }
+        setFileExists(false);
+        setFilename(droppedFile.name);
       }
     }
   };

@@ -247,20 +247,29 @@ export const searchDocuments = async (query: string, topic?: string): Promise<an
     
     // Transform the results to match SearchResult type
     return response.data.results.map((item: any) => {
-      // Add debug logging for metadata
-      console.log('Result item metadata:', item.metadata);
+      // Add debug logging for the full item
+      console.log('Full result item:', item);
       
-      const filename = item.metadata?.filename || 
-                      item.metadata?.original_filename ||
-                      item.metadata?.source || 
-                      item.metadata?.file || 
+      // The actual content is in the _source field
+      const source = item._source || {};
+      
+      // Extract text content from source
+      const textContent = source.text_chunk || source.text || source.content || source.snippet || '';
+      
+      // Extract filename from source metadata
+      const filename = source.metadata?.filename || 
+                      source.metadata?.original_filename ||
+                      source.metadata?.source || 
+                      source.metadata?.file || 
+                      source.filename ||
                       'Unknown file';
       
-      const score = typeof item.score === 'number' ? item.score : 1.0;
+      // Use the _score from the result item
+      const score = typeof item._score === 'number' ? item._score : 1.0;
       
       return {
-        id: filename || Math.random().toString(36).substr(2, 9),
-        snippet: item.text_chunk || '',
+        id: item._id || filename || Math.random().toString(36).substr(2, 9),
+        snippet: textContent,
         filename: filename,
         confidence: Number(score.toFixed(2))
       };

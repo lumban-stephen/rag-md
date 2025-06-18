@@ -9,6 +9,8 @@ export class S3Service {
   private documentService: DocumentService;
   private fileContentService: FileContentService;
   private ingestionStatusService: IngestionStatusService;
+  private s3: AWS.S3;
+  private bucketName: string;
 
   constructor() {
     // Initialize AWS configuration
@@ -21,6 +23,8 @@ export class S3Service {
     this.documentService = new DocumentService();
     this.fileContentService = new FileContentService();
     this.ingestionStatusService = new IngestionStatusService();
+    this.s3 = new AWS.S3();
+    this.bucketName = config.aws.s3.bucket || '';
   }
 
   // Document operations
@@ -82,19 +86,31 @@ export class S3Service {
   async getAllTopics(): Promise<string[]> {
     try {
       console.log('Getting all topics...');
-      const response = await this.documentService.listDocuments();
-      console.log('List documents response:', response);
       
-      if (!response || !response.documents) {
-        console.error('Invalid response from listDocuments:', response);
-        throw new Error('Invalid response from listDocuments');
-      }
+      // List both processed and uploads directories in parallel
+      const [processedResponse, uploadsResponse] = await Promise.all([
+        this.s3.listObjectsV2({
+          Bucket: this.bucketName,
+          Prefix: config.aws.s3.processedPrefix,
+          Delimiter: '/'
+        }).promise(),
+        this.s3.listObjectsV2({
+          Bucket: this.bucketName,
+          Prefix: config.aws.s3.uploadsPrefix,
+          Delimiter: '/'
+        }).promise()
+      ]);
 
-      // Extract unique topics from documents
+      // Combine and deduplicate topics from both directories
+      const allPrefixes = [
+        ...(processedResponse.CommonPrefixes || []),
+        ...(uploadsResponse.CommonPrefixes || [])
+      ];
+
       const topics = Array.from(new Set(
-        response.documents
-          .map(doc => doc.topic)
-          .filter(Boolean) // Remove null/undefined/empty strings
+        allPrefixes
+          .map(prefix => prefix.Prefix?.split('/')[1]) // Get the topic name from the prefix
+          .filter((topic): topic is string => Boolean(topic)) // Remove null/undefined/empty strings
       ));
 
       console.log('Extracted topics:', topics);

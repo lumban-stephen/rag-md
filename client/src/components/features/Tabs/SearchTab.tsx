@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/Card
 import Button from '../ui/Button';
 import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
-import { searchDocuments, getDocuments } from '../../../services/api';
+import { searchDocuments, getDocuments, getAllTopics } from '../../../services/api';
 import { SearchResult } from '../../../types';
 import toast from 'react-hot-toast';
 
@@ -29,14 +29,15 @@ const SearchTab: React.FC = () => {
   useEffect(() => {
     const fetchTopics = async () => {
       try {
-        const response = await getDocuments();
-        if (response.topics) {
-          const uniqueTopics = Array.from(new Set(response.topics.filter(Boolean)));
-          setTopics(uniqueTopics.map(topic => ({
+        const topicsList = await getAllTopics();
+        // Filter out empty strings and duplicates, then sort alphabetically
+        const uniqueTopics = Array.from(new Set(topicsList.filter(Boolean)))
+          .sort((a, b) => a.localeCompare(b))
+          .map(topic => ({
             value: topic,
             label: topic
-          })));
-        }
+          }));
+        setTopics(uniqueTopics);
       } catch (error) {
         console.error('Error fetching topics:', error);
         toast.error('Failed to load topics');
@@ -58,6 +59,9 @@ const SearchTab: React.FC = () => {
     setIsSearching(true);
     try {
       const searchResults = await searchDocuments(query, selectedTopic || undefined);
+      // Add debug logging
+      console.log('Raw search results:', searchResults);
+      console.log('First result snippet:', searchResults[0]?.snippet);
       // Limit results to 3 and reset previous results
       setResults(searchResults.slice(0, 3));
       setHasSearched(true);
