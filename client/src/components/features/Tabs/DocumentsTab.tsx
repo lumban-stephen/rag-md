@@ -134,16 +134,16 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialC
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-[80vw] h-[80vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-[80vw] h-[80vh] flex flex-col">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">{isViewOnly ? 'View' : 'Edit'} {filename}</h2>
+          <h2 className="text-xl font-semibold dark:text-gray-100">{isViewOnly ? 'View' : 'Edit'} {filename}</h2>
           <Button variant="ghost" onClick={handleCancel}>×</Button>
         </div>
         <div className="flex-grow overflow-auto mb-4">
           <textarea
             value={content}
             onChange={handleContentChange}
-            className={`w-full h-full min-h-[400px] p-4 border rounded-lg font-mono text-sm ${isViewOnly ? 'bg-gray-50 cursor-default' : ''}`}
+            className={`w-full h-full min-h-[400px] p-4 border rounded-lg font-mono text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 ${isViewOnly ? 'bg-gray-50 dark:bg-gray-700 cursor-default' : ''}`}
             spellCheck="false"
             readOnly={isViewOnly}
           />
@@ -163,8 +163,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, initialC
           )}
         </div>
         {!isViewOnly && showConfirmSave && (
-          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-yellow-800">
+          <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-yellow-800 dark:text-yellow-200">
               You are about to update the RAG content. This will affect future search results.
               Are you sure you want to proceed?
             </p>
@@ -710,7 +710,7 @@ const DocumentsTab: React.FC = () => {
     <>
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-xl font-semibold">Documents</h3>
+          <h3 className="text-xl font-semibold dark:text-gray-100">Documents</h3>
           <div className="mt-2 sm:mt-0 flex flex-row items-center gap-4">
             <div className="w-48">
               <div className="mb-4">
@@ -719,7 +719,9 @@ const DocumentsTab: React.FC = () => {
                   placeholder="Search by filename..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 
+                           rounded-md shadow-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -741,7 +743,7 @@ const DocumentsTab: React.FC = () => {
               <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
             </div>
           ) : documents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+            <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
               <AlertCircle className="h-12 w-12 mb-4" />
               <p className="text-lg">No documents found</p>
               <p className="text-sm mt-2">
@@ -751,14 +753,14 @@ const DocumentsTab: React.FC = () => {
               </p>
             </div>
           ) : (
-            <table className="w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th className="w-12 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-12 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     #
                   </th>
                   <th 
-                    className="w-1/4 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-1/4 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                     onClick={() => handleSort('filename')}
                   >
                     <div className="flex items-center gap-1">
@@ -767,7 +769,7 @@ const DocumentsTab: React.FC = () => {
                     </div>
                   </th>
                   <th 
-                    className="w-1/6 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-1/6 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                     onClick={() => handleSort('topic')}
                   >
                     <div className="flex items-center gap-1">
@@ -776,7 +778,7 @@ const DocumentsTab: React.FC = () => {
                     </div>
                   </th>
                   <th 
-                    className="w-1/6 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-1/6 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                     onClick={() => handleSort('lastModified')}
                   >
                     <div className="flex items-center gap-1">
@@ -785,7 +787,7 @@ const DocumentsTab: React.FC = () => {
                     </div>
                   </th>
                   <th 
-                    className="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="w-1/6 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                     onClick={() => handleSort('size')}
                   >
                     <div className="flex items-center gap-1">
@@ -793,22 +795,22 @@ const DocumentsTab: React.FC = () => {
                       <ArrowUpDown className="h-4 w-4" />
                     </div>
                   </th>
-                  <th className="w-32 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-1/6 px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {getPaginatedDocuments().map((doc, index) => (
-                  <tr key={`${doc.topic}-${doc.filename}-${index}`}>
-                    <td className="px-4 py-4 text-sm text-gray-500">
+                  <tr key={`${doc.topic}-${doc.filename}-${index}`} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">
                       {(currentPage - 1) * rowsPerPage + index + 1}
                     </td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900">
+                    <td className="px-4 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleViewClick(doc.topic, doc.filename)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline focus:outline-none truncate"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline focus:outline-none truncate"
                         >
                           {doc.filename}
                         </button>
@@ -820,19 +822,19 @@ const DocumentsTab: React.FC = () => {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-500">
+                    <td className="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">
                       <Badge variant="default">{doc.topic}</Badge>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-500">
+                    <td className="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">
                       {formatDate(doc.lastModified)}
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-500">
+                    <td className="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">
                       {formatFileSize(doc.size)}
                     </td>
                     <td className="px-4 py-4 text-center text-sm font-medium">
                       <div className="flex justify-center gap-2">
                         <Button
-                          variant="primary"
+                          variant="ghost"
                           size="sm"
                           onClick={() => handleEditClick(doc.topic, doc.filename)}
                           icon={<Edit2 className="h-4 w-4" />}
@@ -840,7 +842,7 @@ const DocumentsTab: React.FC = () => {
                           Edit
                         </Button>
                         <Button
-                          variant="danger"
+                          variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(doc.topic, doc.filename)}
                           icon={<Trash2 className="h-4 w-4" />}
@@ -857,9 +859,9 @@ const DocumentsTab: React.FC = () => {
 
           {/* Pagination Controls */}
           {totalDocuments > 0 && (
-            <div className="flex items-center justify-between px-4 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between px-4 py-4 border-t border-gray-200 dark:border-gray-700">
               <div className="flex items-center">
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Showing{' '}
                   <span className="font-medium">
                     {totalDocuments === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}
@@ -884,7 +886,7 @@ const DocumentsTab: React.FC = () => {
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                   <Button
                     key={page}
-                    variant={currentPage === page ? "primary" : "ghost"}
+                    variant={currentPage === page ? "ghost" : "ghost"}
                     onClick={() => handlePageChange(page)}
                   >
                     {page}
@@ -944,14 +946,14 @@ const DocumentsTab: React.FC = () => {
       {/* Logs Modal */}
       {showLogsModal && selectedDocument && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-3/4 max-h-[80vh] flex flex-col">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-3/4 max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">
+              <h3 className="text-lg font-semibold dark:text-gray-100">
                 Processing Logs: {selectedDocument.filename}
               </h3>
               <button
                 onClick={() => setShowLogsModal(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -959,7 +961,7 @@ const DocumentsTab: React.FC = () => {
               </button>
             </div>
             
-            <div className="flex-grow overflow-auto bg-gray-100 rounded p-4 font-mono text-sm">
+            <div className="flex-grow overflow-auto bg-gray-100 dark:bg-gray-700 rounded p-4 font-mono text-sm">
               {isLoadingLogs ? (
                 <div className="flex items-center justify-center h-full">
                   <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
@@ -968,15 +970,15 @@ const DocumentsTab: React.FC = () => {
                 <div className="space-y-2">
                   {processingLogs.map((log, index) => (
                     <div key={index} className="flex gap-4">
-                      <span className="text-gray-500 whitespace-nowrap">
+                      <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap">
                         {new Date(log.timestamp).toLocaleString()}
                       </span>
-                      <span className="text-gray-800">{log.message}</span>
+                      <span className="text-gray-800 dark:text-gray-200">{log.message}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-gray-500 text-center">
+                <div className="text-gray-500 dark:text-gray-400 text-center">
                   No logs available for this document
                 </div>
               )}

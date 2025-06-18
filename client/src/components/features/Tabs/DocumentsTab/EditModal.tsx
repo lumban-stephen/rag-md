@@ -56,16 +56,16 @@ const EditModal: React.FC<EditModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-[80vw] h-[80vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-[80vw] h-[80vh] flex flex-col">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Edit {document.filename}</h2>
+          <h2 className="text-xl font-semibold dark:text-gray-100">Edit {document.filename}</h2>
           <Button variant="ghost" onClick={handleCancel}>×</Button>
         </div>
         <div className="flex-grow overflow-auto mb-4">
           <textarea
             value={content}
             onChange={handleContentChange}
-            className="w-full h-full min-h-[400px] p-4 border rounded-lg font-mono text-sm"
+            className="w-full h-full min-h-[400px] p-4 border rounded-lg font-mono text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
             spellCheck="false"
           />
         </div>
@@ -82,8 +82,8 @@ const EditModal: React.FC<EditModalProps> = ({
           </Button>
         </div>
         {showConfirmSave && (
-          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-yellow-800">
+          <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-yellow-800 dark:text-yellow-200">
               You are about to update the RAG content. This will affect future search results.
               Are you sure you want to proceed?
             </p>
