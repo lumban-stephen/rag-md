@@ -23,7 +23,7 @@ export class LoggingService {
 
   log(event: string, details: string): void {
     const logEntry: LogEntry = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
       event,
       details

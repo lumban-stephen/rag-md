@@ -238,7 +238,7 @@ const DocumentsTab: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [totalDocuments, setTotalDocuments] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedTopic, setSelectedTopic] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState<string | undefined>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [topics, setTopics] = useState<string[]>([]);
@@ -267,8 +267,9 @@ const DocumentsTab: React.FC = () => {
     try {
       const topicsList = await getAllTopics();
       console.log('Received topics:', topicsList);
-      // Filter out empty strings and duplicates before mapping
-      const uniqueTopics = Array.from(new Set(topicsList.filter(Boolean)));
+      // Filter out empty strings and duplicates, then sort alphabetically
+      const uniqueTopics = Array.from(new Set(topicsList.filter(Boolean)))
+        .sort((a, b) => a.localeCompare(b));
       console.log('Unique topics after filtering:', uniqueTopics);
       setTopics(uniqueTopics);
       console.log('Final topics state:', uniqueTopics);
@@ -727,8 +728,8 @@ const DocumentsTab: React.FC = () => {
             </div>
             <div className="w-48">
               <Select
-                value={selectedTopic || ''}
-                onChange={setSelectedTopic}
+                value={selectedTopic}
+                onChange={(value) => setSelectedTopic(value === '' ? undefined : value)}
                 options={[
                   { value: '', label: 'All Topics' },
                   ...topics.map(topic => ({ value: topic, label: topic }))
