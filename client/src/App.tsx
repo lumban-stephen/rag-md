@@ -12,6 +12,7 @@ import DocumentsTab from './components/features/Tabs/DocumentsTab.js';
 import SearchTab from './components/features/Tabs/SearchTab.js';
 import LogsTab from './components/features/Tabs/LogsTab.js';
 import { Search, FileText, Upload, List, Loader2 } from 'lucide-react';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Create loading context
 export const LoadingContext = createContext<{
@@ -55,38 +56,40 @@ function App() {
   ];
 
   return (
-    <LoadingContext.Provider value={{ isLoading, setIsLoading }}>
-      <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
-        {/* Toast notifications */}
-        <Toaster position="top-right" />
-        
-        {/* Global loading spinner */}
-        {isLoading && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center gap-4">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-              <p className="text-gray-700">Loading...</p>
+    <ThemeProvider>
+      <LoadingContext.Provider value={{ isLoading, setIsLoading }}>
+        <div className="min-h-screen flex flex-col bg-[hsl(var(--background))] text-[hsl(var(--foreground))] dark:bg-gray-900 dark:text-gray-100">
+          {/* Toast notifications */}
+          <Toaster position="top-right" />
+          
+          {/* Global loading spinner */}
+          {isLoading && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg flex flex-col items-center gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <p className="text-gray-700 dark:text-gray-300">Loading...</p>
+              </div>
             </div>
-          </div>
-        )}
-        
-        {/* Application header */}
-        <Header />
-        
-        {/* Tab navigation */}
-        <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
-        
-        {/* Main content area */}
-        <main className="flex-grow w-full flex justify-center mt-8">
-          <div className="w-full min-w-[80%] max-w-[80%]">
-            {renderTabContent()}
-          </div>
-        </main>
-        
-        {/* Application footer */}
-        <Footer />
-      </div>
-    </LoadingContext.Provider>
+          )}
+          
+          {/* Application header */}
+          <Header />
+          
+          {/* Tab navigation */}
+          <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
+          
+          {/* Main content area */}
+          <main className="flex-grow w-full flex justify-center mt-8">
+            <div className="w-full min-w-[80%] max-w-[80%]">
+              {renderTabContent()}
+            </div>
+          </main>
+          
+          {/* Application footer */}
+          <Footer />
+        </div>
+      </LoadingContext.Provider>
+    </ThemeProvider>
   );
 }
 

@@ -70,13 +70,13 @@ const Select = forwardRef<HTMLInputElement, SelectProps>(
     return (
       <div className={`${fullWidth ? 'w-full' : ''} mb-4 relative`} ref={dropdownRef}>
         {label && (
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             {label}
           </label>
         )}
         <div
-          className={`relative h-[38px] flex items-center px-3 bg-white border border-gray-300 rounded-md shadow-sm 
-                     text-gray-700 cursor-pointer ${fullWidth ? 'w-full' : ''} 
+          className={`relative h-[38px] flex items-center px-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm 
+                     text-gray-700 dark:text-gray-200 cursor-pointer ${fullWidth ? 'w-full' : ''} 
                      ${error ? 'border-red-500' : ''} ${className}`}
           onClick={handleTriggerClick}
           role="button"
@@ -95,7 +95,7 @@ const Select = forwardRef<HTMLInputElement, SelectProps>(
         </div>
         {isOpen && (
           <div 
-            className="absolute z-[100] mt-1 bg-white border border-gray-300 rounded-md shadow-lg min-w-[200px]"
+            className="absolute z-[100] mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg min-w-[200px]"
             style={{ 
               pointerEvents: 'auto',
               width: 'max-content',
@@ -103,14 +103,16 @@ const Select = forwardRef<HTMLInputElement, SelectProps>(
             }}
           >
             {/* Search input */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-2 z-10">
+            <div className="sticky top-0 bg-white dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 p-2 z-10">
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 placeholder="Search..."
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md 
+                         text-gray-700 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
@@ -121,9 +123,9 @@ const Select = forwardRef<HTMLInputElement, SelectProps>(
                 filteredOptions.map((option) => (
                   <div
                     key={option.value}
-                    className={`px-3 py-2 cursor-pointer hover:bg-gray-100 ${
-                      option.value === value ? 'bg-blue-50' : ''
-                    }`}
+                    className={`px-3 py-2 cursor-pointer text-gray-700 dark:text-gray-200
+                              hover:bg-gray-100 dark:hover:bg-gray-600
+                              ${option.value === value ? 'bg-blue-50 dark:bg-blue-900/50' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleSelect(option);
@@ -139,14 +141,14 @@ const Select = forwardRef<HTMLInputElement, SelectProps>(
                   </div>
                 ))
               ) : (
-                <div className="px-3 py-2 text-gray-500 text-sm">
+                <div className="px-3 py-2 text-gray-500 dark:text-gray-400 text-sm">
                   No options found
                 </div>
               )}
             </div>
           </div>
         )}
-        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>}
       </div>
     );
   }
@@ -181,7 +183,7 @@ export const TopicSelect: React.FC<TopicSelectProps> = ({
   return (
     <div className={`${fullWidth ? 'w-full' : ''} mb-4`}>
       {props.label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           {props.label}
         </label>
       )}
@@ -192,9 +194,9 @@ export const TopicSelect: React.FC<TopicSelectProps> = ({
             value={newTopic}
             onChange={(e) => setNewTopic(e.target.value)}
             placeholder="Enter new topic"
-            className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm 
-                     text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                     focus:border-blue-500"
+            className="flex-1 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm 
+                     text-gray-700 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 handleAddTopic();
@@ -216,7 +218,8 @@ export const TopicSelect: React.FC<TopicSelectProps> = ({
               setIsAddingNew(false);
               setNewTopic('');
             }}
-            className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 
+            className="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md 
+                     hover:bg-gray-300 dark:hover:bg-gray-500
                      focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
           >
             Cancel
@@ -234,7 +237,8 @@ export const TopicSelect: React.FC<TopicSelectProps> = ({
           />
           <button
             onClick={() => setIsAddingNew(true)}
-            className="h-[38px] px-3 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 
+            className="h-[38px] px-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md 
+                     hover:bg-gray-300 dark:hover:bg-gray-500
                      focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
                      flex items-center justify-center whitespace-nowrap"
           >
@@ -242,7 +246,7 @@ export const TopicSelect: React.FC<TopicSelectProps> = ({
           </button>
         </div>
       )}
-      {props.error && <p className="mt-1 text-sm text-red-600">{props.error}</p>}
+      {props.error && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{props.error}</p>}
     </div>
   );
 };

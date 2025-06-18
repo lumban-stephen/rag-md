@@ -15,7 +15,7 @@ const TabNavigation: React.FC<TabProps> = ({ activeTab, setActiveTab }) => {
   ];
 
   return (
-    <div className="bg-white border-b border-gray-200">
+    <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
       <div className="container mx-auto">
         <nav className="flex overflow-x-auto">
           {tabs.map((tab) => (
@@ -24,8 +24,8 @@ const TabNavigation: React.FC<TabProps> = ({ activeTab, setActiveTab }) => {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors duration-200 ease-in-out
                 ${activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               aria-current={activeTab === tab.id ? 'page' : undefined}
             >
