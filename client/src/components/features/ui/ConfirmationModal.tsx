@@ -36,23 +36,23 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
         <div className="flex items-center gap-3 mb-4">
           <AlertTriangle className="h-6 w-6 text-red-500" />
-          <h3 className="text-lg font-semibold">{title}</h3>
+          <h3 className="text-lg font-semibold dark:text-gray-100">{title}</h3>
         </div>
         
-        <p className="text-gray-600 mb-4">{message}</p>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">{message}</p>
         
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Type "{confirmText}" to confirm
           </label>
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
             placeholder={`Type "${confirmText}" to confirm`}
           />
         </div>

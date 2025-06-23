@@ -11,6 +11,7 @@ import { RefreshCw, Clock, Activity } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/Card';
 import Button from '../ui/Button';
+import Badge from '../ui/Badge';
 import { getLogs, refreshIndex } from '../../../services/api'
 import { LogEntry } from '../../../types'
 import toast from 'react-hot-toast';
@@ -78,7 +79,7 @@ const LogsTab: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Main logs section */}
         <div className="md:col-span-2">
-          <Card>
+          <Card className="h-[800px] flex flex-col">
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="flex items-center">
                 <Activity className="mr-2 h-5 w-5" />
@@ -86,7 +87,7 @@ const LogsTab: React.FC = () => {
               </CardTitle>
               {/* Manual refresh button */}
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={fetchLogs}
                 isLoading={isLoading}
@@ -95,7 +96,7 @@ const LogsTab: React.FC = () => {
                 Refresh Logs
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-hidden">
               {isLoading ? (
                 // Loading state
                 <div className="flex justify-center items-center py-12">
@@ -108,11 +109,11 @@ const LogsTab: React.FC = () => {
                 </div>
               ) : (
                 // Log entries list
-                <div className="space-y-4">
+                <div className="space-y-4 h-full overflow-y-auto pr-2">
                   {logs.map((log) => (
-                    <div key={log.id} className="border-l-4 border-blue-500 pl-4 py-2">
+                    <div key={`${log.id}-${log.timestamp}`} className="border-l-4 border-blue-500 pl-4 py-2">
                       {/* Timestamp */}
-                      <div className="flex items-center text-sm text-gray-500">
+                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                         <Clock className="mr-1 h-4 w-4" />
                         <span>
                           {format(new Date(log.timestamp), 'MMM d, yyyy h:mm:ss a')}
@@ -121,10 +122,10 @@ const LogsTab: React.FC = () => {
                       {/* Event type with icon */}
                       <div className="mt-1 flex items-center">
                         <span className="mr-2 text-lg">{getEventIcon(log.event)}</span>
-                        <h4 className="font-medium text-gray-800">{log.event}</h4>
+                        <h4 className="font-medium text-gray-800 dark:text-gray-100">{log.event}</h4>
                       </div>
                       {/* Event details */}
-                      <p className="mt-1 text-sm text-gray-600">{log.details}</p>
+                      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{log.details}</p>
                     </div>
                   ))}
                 </div>
@@ -141,9 +142,9 @@ const LogsTab: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* OpenSearch index management */}
-              <div className="border rounded-lg p-4 bg-gray-50">
-                <h3 className="font-medium text-gray-800 mb-2">OpenSearch Index</h3>
-                <p className="text-sm text-gray-600 mb-4">
+              <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+                <h3 className="font-medium text-gray-800 dark:text-gray-100 mb-2">OpenSearch Index</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   Manually refresh the OpenSearch index to ensure all document changes are searchable.
                 </p>
                 <Button
@@ -157,29 +158,23 @@ const LogsTab: React.FC = () => {
               </div>
               
               {/* System status indicators */}
-              <div className="border rounded-lg p-4 bg-gray-50">
-                <h3 className="font-medium text-gray-800 mb-2">System Status</h3>
+              <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+                <h3 className="font-medium text-gray-800 dark:text-gray-100 mb-2">System Status</h3>
                 <div className="space-y-2">
                   {/* S3 status */}
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">S3 Bucket:</span>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Online
-                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">S3 Bucket:</span>
+                    <Badge variant="success">Online</Badge>
                   </div>
                   {/* OpenSearch status */}
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">OpenSearch Cluster:</span>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Online
-                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">OpenSearch Cluster:</span>
+                    <Badge variant="success">Online</Badge>
                   </div>
                   {/* Lambda status */}
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Lambda Functions:</span>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Online
-                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Lambda Functions:</span>
+                    <Badge variant="success">Online</Badge>
                   </div>
                 </div>
               </div>

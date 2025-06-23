@@ -218,9 +218,9 @@ const SearchTab: React.FC = () => {
                       </div>
                       {/* Result content with highlighted terms */}
                       <div className="mt-2">
-                        <p className="text-sm font-medium text-gray-700 mb-1">Content:</p>
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Content:</p>
                         <p 
-                          className="text-gray-600 text-sm bg-gray-50 p-3 rounded"
+                          className="text-gray-600 dark:text-gray-300 text-sm bg-gray-50 dark:bg-gray-700 p-3 rounded"
                           dangerouslySetInnerHTML={{ __html: highlightSearchTerms(result.snippet) }}
                         ></p>
                       </div>
