@@ -9,7 +9,7 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Clock, Activity } from 'lucide-react';
 import { format } from 'date-fns';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/Card';
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import { getLogs, refreshIndex } from '../../../services/api'

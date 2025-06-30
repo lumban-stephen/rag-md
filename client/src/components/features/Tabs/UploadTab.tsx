@@ -5,12 +5,12 @@
  * Handles file validation, topic management, and upload progress
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { UploadCloud, Check, AlertCircle } from 'lucide-react';
+import { UploadCloud, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/Card';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import { TopicSelect } from '../ui/Select';
-import { generateUploadUrl, uploadFile, getDocuments, checkFileExists, getAllTopics } from '../../../services/api';
+import { uploadFile, checkFileExists, getAllTopics } from '../../../services/api';
 import toast from 'react-hot-toast';
 import { LoadingContext } from '../../../App';
 import ConfirmationModal from '../ui/ConfirmationModal';

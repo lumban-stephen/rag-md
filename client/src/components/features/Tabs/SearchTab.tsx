@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/Card
 import Button from '../ui/Button';
 import TextArea from '../ui/TextArea';
 import Select from '../ui/Select';
-import { searchDocuments, getDocuments, getAllTopics } from '../../../services/api';
+import { searchDocuments, getAllTopics } from '../../../services/api';
 import { SearchResult } from '../../../types';
 import toast from 'react-hot-toast';
 

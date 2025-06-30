@@ -1,5 +1,5 @@
 import React from 'react';
-import { Upload, FileText, Search, Activity as ActivityLog, Box } from 'lucide-react';
+import { Upload, FileText, Search } from 'lucide-react';
 
 interface TabProps {
   activeTab: string;

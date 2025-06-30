@@ -30,4 +30,18 @@ export interface PaginationProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+}
+
+export interface ProcessingNotification {
+  topic: string;
+  filename: string;
+  status: 'pending' | 'processing' | 'complete' | 'error';
+  message: string;
+  timestamp?: string;
+}
+
+export interface ProcessingLog {
+  timestamp: number;
+  message: string;
+  logStreamName: string;
 } 
