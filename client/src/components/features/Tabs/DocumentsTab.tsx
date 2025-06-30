@@ -394,20 +394,20 @@ const DocumentsTab: React.FC = () => {
             </div>
           ) : (
             <DocumentsTable
-              documents={documents.map(doc => ({
-                ...(doc as any),
-                id: (doc as any).id || `${doc.topic}-${doc.filename}`
-              }))}
+              documents={documents}
               isLoading={isLoading}
               onDelete={(id) => {
-                const doc = documents.find(d => ((d as any).id ? (d as any).id === id : `${d.topic}-${d.filename}` === id));
-                if (doc) handleDelete(doc.topic, doc.filename);
+                const [topic, filename] = id.split(':');
+                handleDelete(topic, filename);
               }}
               onEdit={(doc) => handleEditClick(doc.topic, doc.filename)}
               onView={(id) => {
-                const doc = documents.find(d => ((d as any).id ? (d as any).id === id : `${d.topic}-${d.filename}` === id));
-                if (doc) handleViewClick(doc.topic, doc.filename);
+                const [topic, filename] = id.split(':');
+                handleViewClick(topic, filename);
               }}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={(field: string) => handleSort(field as any)}
             />
           )}
 

@@ -18,6 +18,9 @@ export interface DocumentsTableProps {
   onDelete: (id: string) => void;
   onEdit: (document: DocumentType) => void;
   onView: (id: string) => void;
+  sortField: string;
+  sortDirection: 'asc' | 'desc';
+  onSort: (field: string) => void;
 }
 
 export interface EditModalProps {

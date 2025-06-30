@@ -15,27 +15,6 @@ import toast from 'react-hot-toast';
 import { LoadingContext } from '../../../App';
 import ConfirmationModal from '../ui/ConfirmationModal';
 
-/**
- * Represents a document in the system
- * @property topic - Category/topic of the document
- * @property filename - Name of the file
- * @property lastModified - Last modification timestamp
- * @property size - File size in bytes
- */
-interface Document {
-  topic: string;
-  filename: string;
-  lastModified: string;
-  size: number;
-}
-
-/**
- * Response from the documents API
- * @property documents - Array of documents
- */
-interface DocumentsResponse {
-  documents: Document[];
-}
 
 const UploadTab: React.FC = () => {
   const { setIsLoading } = React.useContext(LoadingContext);
@@ -49,7 +28,6 @@ const UploadTab: React.FC = () => {
   const [isLoadingTopics, setIsLoadingTopics] = useState(true);
   const [fileExists, setFileExists] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Accepted file types and MIME types for validation
   const acceptedFileTypes = '.pdf,.txt,.md,.json,.csv';

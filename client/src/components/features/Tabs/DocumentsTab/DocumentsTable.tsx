@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import Button from '../../ui/Button.js';
 import Badge from '../../ui/Badge.js';
 import { DocumentsTableProps } from './types';
@@ -10,7 +10,10 @@ const DocumentsTable: React.FC<DocumentsTableProps> = ({
   isLoading,
   onDelete,
   onEdit,
-  onView
+  onView,
+  sortField,
+  sortDirection,
+  onSort
 }) => {
   if (isLoading) {
     return (
@@ -22,27 +25,83 @@ const DocumentsTable: React.FC<DocumentsTableProps> = ({
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+        <thead className="bg-white dark:bg-gray-800">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Filename
+            <th
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+              onClick={() => onSort('filename')}
+            >
+              <span className="flex items-center gap-1">
+                Filename
+                {sortField === 'filename' ? (
+                  sortDirection === 'asc' ? (
+                    <ChevronUp className="w-4 h-4 text-blue-500 inline" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-blue-500 inline" />
+                  )
+                ) : (
+                  <ChevronUp className="w-4 h-4 text-gray-400 inline" />
+                )}
+              </span>
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Topic
+            <th
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+              onClick={() => onSort('topic')}
+            >
+              <span className="flex items-center gap-1">
+                Topic
+                {sortField === 'topic' ? (
+                  sortDirection === 'asc' ? (
+                    <ChevronUp className="w-4 h-4 text-blue-500 inline" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-blue-500 inline" />
+                  )
+                ) : (
+                  <ChevronUp className="w-4 h-4 text-gray-400 inline" />
+                )}
+              </span>
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Last Modified
+            <th
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+              onClick={() => onSort('lastModified')}
+            >
+              <span className="flex items-center gap-1">
+                Last Modified
+                {sortField === 'lastModified' ? (
+                  sortDirection === 'asc' ? (
+                    <ChevronUp className="w-4 h-4 text-blue-500 inline" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-blue-500 inline" />
+                  )
+                ) : (
+                  <ChevronUp className="w-4 h-4 text-gray-400 inline" />
+                )}
+              </span>
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Size
+            <th
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+              onClick={() => onSort('size')}
+            >
+              <span className="flex items-center gap-1">
+                Size
+                {sortField === 'size' ? (
+                  sortDirection === 'asc' ? (
+                    <ChevronUp className="w-4 h-4 text-blue-500 inline" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-blue-500 inline" />
+                  )
+                ) : (
+                  <ChevronUp className="w-4 h-4 text-gray-400 inline" />
+                )}
+              </span>
             </th>
             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
           {documents.map((doc) => (
             <tr key={doc.id}>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
