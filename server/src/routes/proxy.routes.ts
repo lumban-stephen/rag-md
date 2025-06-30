@@ -227,4 +227,54 @@ router.get('/opensearch/chunks/:topic/:filename', async (req, res) => {
   }
 });
 
+/**
+ * Delete a topic and all its associated chunks from OpenSearch
+ * @route DELETE /api/proxy/opensearch/topic/:topic
+ */
+router.delete('/opensearch/topic/:topic', async (req, res) => {
+  try {
+    const { topic } = req.params;
+    console.log('Deleting topic and its chunks:', { 
+      topic,
+      apiGatewayUrl: config.apiGateway.url
+    });
+    
+    if (!config.apiGateway.url) {
+      throw new Error('API Gateway URL is not configured');
+    }
+    
+    const deleteUrl = `${config.apiGateway.url}/delete-topic/${encodeURIComponent(topic)}`;
+    console.log('Making request to:', deleteUrl);
+    
+    const response = await axios.delete(deleteUrl);
+    console.log('Delete response:', {
+      status: response.status,
+      statusText: response.statusText,
+      data: response.data
+    });
+    
+    res.json({ 
+      message: `Successfully deleted topic "${topic}" and all its chunks`,
+      details: response.data
+    });
+  } catch (error) {
+    console.error('Error deleting topic:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+    }
+    res.status(500).json({ 
+      error: 'Failed to delete topic',
+      details: axios.isAxiosError(error) ? {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      } : error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router; 

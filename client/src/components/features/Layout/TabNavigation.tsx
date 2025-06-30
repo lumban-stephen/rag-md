@@ -10,8 +10,7 @@ const TabNavigation: React.FC<TabProps> = ({ activeTab, setActiveTab }) => {
   const tabs = [
     { id: 'search', label: 'Search', icon: <Search className="h-5 w-5" /> },
     { id: 'documents', label: 'Documents', icon: <FileText className="h-5 w-5" /> },
-    { id: 'upload', label: 'Upload', icon: <Upload className="h-5 w-5" /> },
-    { id: 'logs', label: 'Logs', icon: <ActivityLog className="h-5 w-5" /> }
+    { id: 'upload', label: 'Upload', icon: <Upload className="h-5 w-5" /> }
   ];
 
   return (

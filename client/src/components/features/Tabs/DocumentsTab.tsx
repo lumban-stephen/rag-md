@@ -6,7 +6,7 @@ import Button from '../ui/Button.js';
 import Select from '../ui/Select.js';
 import Badge from '../ui/Badge.js';
 import ConfirmationModal from '../ui/ConfirmationModal.js';
-import { getDocuments, deleteDocument, deleteDocuments, getDownloadUrl, getFileContent, updateFileContent, checkIngestionStatus, getAllTopics, getProcessingLogs, getDocumentChunks } from '../../../services/api/index.js';
+import { getDocuments, deleteDocument, deleteDocuments, getDownloadUrl, getFileContent, updateFileContent, checkIngestionStatus, getAllTopics, getProcessingLogs, getDocumentChunks, deleteTopic } from '../../../services/api/index.js';
 import toast from 'react-hot-toast';
 import Input from '../ui/Input.js';
 import { LoadingContext } from '../../../App';
@@ -258,6 +258,9 @@ const DocumentsTab: React.FC = () => {
   const [processingLogs, setProcessingLogs] = useState<ProcessingLog[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const { setIsLoading: setGlobalLoading } = useContext(LoadingContext);
+  const [isDeletingTopic, setIsDeletingTopic] = useState(false);
+  const [showDeleteTopicModal, setShowDeleteTopicModal] = useState(false);
+  const [topicToDelete, setTopicToDelete] = useState<string | null>(null);
 
   /**
    * Fetches all available topics
@@ -596,6 +599,7 @@ const DocumentsTab: React.FC = () => {
   const handleSaveContent = async (content: string) => {
     if (!editingFile) return;
 
+    setGlobalLoading(true); // Show global loader
     try {
       await updateFileContent(editingFile.topic, editingFile.filename, content);
       toast.success('Document updated successfully');
@@ -620,6 +624,8 @@ const DocumentsTab: React.FC = () => {
     } catch (error) {
       console.error('Error updating document:', error);
       toast.error('Failed to update document');
+    } finally {
+      setGlobalLoading(false); // Hide global loader
     }
   };
 
@@ -707,6 +713,56 @@ const DocumentsTab: React.FC = () => {
     });
   };
 
+  /**
+   * Handles topic deletion
+   */
+  const handleDeleteTopic = async (topic: string) => {
+    setTopicToDelete(topic);
+    setShowDeleteTopicModal(true);
+  };
+
+  /**
+   * Executes the topic deletion
+   */
+  const executeDeleteTopic = async () => {
+    if (!topicToDelete) return;
+
+    setIsDeletingTopic(true);
+    try {
+      await deleteTopic(topicToDelete);
+      toast.success(`Topic "${topicToDelete}" has been deleted`, {
+        duration: 4000,
+        icon: '🗑️',
+        style: {
+          background: '#10B981',
+          color: '#fff',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+      });
+      // Reset topic selection and refresh topics list
+      setSelectedTopic('');
+      fetchTopics();
+      fetchDocuments();
+    } catch (error) {
+      console.error('Error deleting topic:', error);
+      toast.error(`Failed to delete topic "${topicToDelete}"`, {
+        duration: 4000,
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#fff',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+      });
+    } finally {
+      setIsDeletingTopic(false);
+      setShowDeleteTopicModal(false);
+      setTopicToDelete(null);
+    }
+  };
+
   return (
     <>
       <Card>
@@ -736,6 +792,16 @@ const DocumentsTab: React.FC = () => {
                 ]}
               />
             </div>
+            {selectedTopic && (
+              <Button
+                variant="danger"
+                onClick={() => handleDeleteTopic(selectedTopic)}
+                isLoading={isDeletingTopic}
+                icon={<Trash2 className="h-4 w-4" />}
+              >
+                Delete Topic
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -987,6 +1053,21 @@ const DocumentsTab: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Topic Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteTopicModal}
+        onClose={() => {
+          setShowDeleteTopicModal(false);
+          setTopicToDelete(null);
+        }}
+        onConfirm={executeDeleteTopic}
+        title="Delete Topic"
+        message={`Are you sure you want to delete the topic "${topicToDelete}"? This will remove all associated chunks from OpenSearch. This action cannot be undone.`}
+        confirmText="delete"
+        confirmButtonText="Delete Topic"
+        cancelButtonText="Cancel"
+      />
     </>
   );
 };

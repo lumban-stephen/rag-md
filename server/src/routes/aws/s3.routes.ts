@@ -279,6 +279,10 @@ router.get('/ingestion-status', async (req, res) => {
  */
 router.get('/topics', async (req, res) => {
   console.log('Received request for topics');
+  console.log('ENV AWS_S3_BUCKET:', process.env.AWS_S3_BUCKET);
+  console.log('ENV AWS_ACCESS_KEY_ID:', process.env.AWS_ACCESS_KEY_ID ? '[set]' : '[not set]');
+  console.log('ENV AWS_SECRET_ACCESS_KEY:', process.env.AWS_SECRET_ACCESS_KEY ? '[set]' : '[not set]');
+  console.log('ENV AWS_REGION:', process.env.AWS_REGION);
   try {
     const topics = await s3Service.getAllTopics();
     console.log('Retrieved topics from S3:', topics);
