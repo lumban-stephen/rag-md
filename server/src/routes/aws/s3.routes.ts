@@ -143,7 +143,7 @@ router.get('/documents', async (req, res) => {
 router.get('/documents/:topic', async (req, res) => {
   try {
     const { topic } = req.params;
-    const documents = await s3Service.listDocuments(topic);
+    const documents = await s3Service.listDocuments({ topic });
     res.json({ documents });
   } catch (error) {
     console.error('Error listing documents:', error);
@@ -162,8 +162,8 @@ router.delete('/documents/:topic/:filename', async (req, res) => {
     await s3Service.deleteDocument(topic, filename);
     
     // Check if there are any remaining files in this topic
-    const remainingFiles = await s3Service.listDocuments(topic);
-    const wasLastFile = remainingFiles.length === 0;
+    const remainingFiles = await s3Service.listDocuments({ topic });
+    const wasLastFile = remainingFiles.documents.length === 0;
     
     res.json({ 
       message: 'Document deleted successfully',

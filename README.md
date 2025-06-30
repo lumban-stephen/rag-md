@@ -100,7 +100,7 @@ A modern web application for managing Retrieval-Augmented Generation (RAG) pipel
 
 4. Start the development servers:
    ```bash
-   # Start both frontend and backend servers
+   # Start both frontend and backend servers concurrently
    npm run dev
    ```
 
@@ -110,22 +110,4 @@ A modern web application for managing Retrieval-Augmented Generation (RAG) pipel
 
 ### Available Scripts
 
-```bash
-# Frontend (client directory)
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build
-npm run lint         # Run linter
-npm run test         # Run tests
-
-# Backend (server directory)
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Run linter
-npm run test         # Run tests
 ```
-
-## 📚 Documentation
-
-For detailed information about the application architecture, components, and AWS services integration, please refer to the [Architecture Documentation](ai-docs/architecture.md).

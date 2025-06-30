@@ -37,7 +37,7 @@ export class LoggingService {
     }
 
     // Also log to console in development
-    if (config.env === 'development') {
+    if (config.nodeEnv === 'development') {
       console.log(`[${logEntry.timestamp}] ${event}: ${details}`);
     }
   }

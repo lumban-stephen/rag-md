@@ -32,7 +32,14 @@ export class S3Service {
     return this.documentService.generatePresignedUrl(topic, filename);
   }
 
-  async listDocuments(options?: { topic?: string }): Promise<DocumentListResponse> {
+  async listDocuments(options?: {
+    topic?: string;
+    search?: string;
+    sortField?: string;
+    sortDirection?: 'asc' | 'desc';
+    skip?: number;
+    limit?: number;
+  }): Promise<DocumentListResponse> {
     return this.documentService.listDocuments(options);
   }
 

@@ -3,7 +3,7 @@
  * Handles proxying requests to external services (API Gateway)
  * Includes search and reindexing operations
  */
-import express, { Router } from 'express';
+import { Router } from 'express';
 import axios from 'axios';
 import { config } from '../config/env.js';
 
