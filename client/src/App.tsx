@@ -10,7 +10,6 @@ import TabNavigation from './components/features/Layout/TabNavigation.js';
 import UploadTab from './components/features/Tabs/UploadTab.js';
 import DocumentsTab from './components/features/Tabs/DocumentsTab.js';
 import SearchTab from './components/features/Tabs/SearchTab.js';
-import LogsTab from './components/features/Tabs/LogsTab.js';
 import { Search, FileText, Upload, List, Loader2 } from 'lucide-react';
 import { ThemeProvider } from './contexts/ThemeContext';
 
@@ -40,8 +39,6 @@ function App() {
         return <DocumentsTab />;
       case 'search':
         return <SearchTab />;
-      case 'logs':
-        return <LogsTab />;
       default:
         return <UploadTab />;
     }
@@ -51,8 +48,7 @@ function App() {
   const tabs = [
     { id: 'search', label: 'Search', icon: Search },
     { id: 'documents', label: 'Documents', icon: FileText },
-    { id: 'upload', label: 'Upload', icon: Upload },
-    { id: 'logs', label: 'Logs', icon: List }
+    { id: 'upload', label: 'Upload', icon: Upload }
   ];
 
   return (

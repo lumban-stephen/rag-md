@@ -115,7 +115,7 @@ export const uploadFile = async (file: File, topic: string, filename: string): P
     formData.append('topic', topic);
     formData.append('filename', filename);
 
-    await api.post('/s3/upload', formData, {
+    await api.post('/api/s3/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -153,7 +153,7 @@ export const getDocuments = async (params: GetDocumentsParams = {}): Promise<Doc
       queryParams.append('topic', topic);
     }
 
-    const url = `/s3/documents?${queryParams.toString()}`;
+    const url = `/api/s3/documents?${queryParams.toString()}`;
     const response = await api.get(url);
     
     // Extract unique topics from documents
@@ -201,7 +201,7 @@ export const getDocuments = async (params: GetDocumentsParams = {}): Promise<Doc
  */
 export const deleteDocument = async (topic: string, filename: string): Promise<{ success: boolean; wasLastFile: boolean }> => {
   try {
-    const response = await api.delete(`/s3/documents/${topic}/${filename}`);
+    const response = await api.delete(`/api/s3/documents/${topic}/${filename}`);
     return {
       success: true,
       wasLastFile: response.data.wasLastFile
@@ -231,8 +231,8 @@ export const reprocessDocument = async (topic: string, filename: string): Promis
 export const searchDocuments = async (query: string, topic?: string): Promise<any[]> => {
   try {
     const url = topic 
-      ? `/proxy/opensearch/${encodeURIComponent(topic)}`
-      : '/proxy/opensearch';
+      ? `/api/proxy/opensearch/${encodeURIComponent(topic)}`
+      : '/api/proxy/opensearch';
     
     const response = await api.post(url, { query });
     
@@ -321,7 +321,7 @@ export const getIndexStats = async (): Promise<any> => {
  */
 export const deleteDocuments = async (documents: { topic: string; filename: string }[]): Promise<boolean> => {
   try {
-    await api.delete('/s3/documents/bulk', { data: { documents } });
+    await api.delete('/api/s3/documents/bulk', { data: { documents } });
     return true;
   } catch (error) {
     console.error('Error deleting documents:', error);
@@ -334,7 +334,7 @@ export const deleteDocuments = async (documents: { topic: string; filename: stri
  */
 export const getDownloadUrl = async (topic: string, filename: string): Promise<string> => {
   try {
-    const response = await api.get('/s3/download-url', {
+    const response = await api.get('/api/s3/download-url', {
       params: { topic, filename }
     });
     return response.data.url;
@@ -349,7 +349,7 @@ export const getDownloadUrl = async (topic: string, filename: string): Promise<s
  */
 export const getFileContent = async (topic: string, filename: string): Promise<string> => {
   try {
-    const response = await api.get('/s3/file-content', {
+    const response = await api.get('/api/s3/file-content', {
       params: { topic, filename }
     });
     return response.data.content;
@@ -364,7 +364,7 @@ export const getFileContent = async (topic: string, filename: string): Promise<s
  */
 export const updateFileContent = async (topic: string, filename: string, content: string): Promise<boolean> => {
   try {
-    const response = await api.put('/s3/file-content', {
+    const response = await api.put('/api/s3/file-content', {
       topic,
       filename,
       content
@@ -402,7 +402,7 @@ export const checkIngestionStatus = async (topic: string, filename: string): Pro
   timestamp?: string;
 }> => {
   try {
-    const response = await api.get('/s3/ingestion-status', {
+    const response = await api.get('/api/s3/ingestion-status', {
       params: { topic, filename }
     });
     return response.data;
@@ -417,7 +417,7 @@ export const checkIngestionStatus = async (topic: string, filename: string): Pro
  */
 export const getAllTopics = async (): Promise<string[]> => {
   try {
-    const response = await api.get('/s3/topics');
+    const response = await api.get('/api/s3/topics');
     return response.data.topics || [];
   } catch (error) {
     console.error('Error fetching topics:', error);
@@ -436,7 +436,7 @@ export const getProcessingLogs = async (topic: string, filename: string): Promis
   }>;
 }> => {
   try {
-    const response = await api.get('/s3/processing-logs', {
+    const response = await api.get('/api/s3/processing-logs', {
       params: { topic, filename }
     });
     return response.data;
@@ -457,7 +457,7 @@ export const getDocumentChunks = async (topic: string, filename: string): Promis
   }>;
 }> => {
   try {
-    const response = await api.get(`/proxy/opensearch/chunks/${encodeURIComponent(topic)}/${encodeURIComponent(filename)}`);
+    const response = await api.get(`/api/proxy/opensearch/chunks/${encodeURIComponent(topic)}/${encodeURIComponent(filename)}`);
     return response.data;
   } catch (error) {
     console.error('Error getting document chunks:', error);
@@ -470,12 +470,26 @@ export const getDocumentChunks = async (topic: string, filename: string): Promis
  */
 export const checkFileExists = async (topic: string, filename: string): Promise<boolean> => {
   try {
-    const response = await api.get('/s3/check-file-exists', {
+    const response = await api.get('/api/s3/check-file-exists', {
       params: { topic, filename }
     });
     return response.data.exists;
   } catch (error) {
     console.error('Error checking file existence:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a topic and all its chunks from OpenSearch
+ */
+export const deleteTopic = async (topic: string): Promise<boolean> => {
+  try {
+    const response = await api.delete(`/api/proxy/opensearch/topic/${encodeURIComponent(topic)}`);
+    console.log('Topic deletion response:', response.data);
+    return true;
+  } catch (error) {
+    console.error('Error deleting topic:', error);
     throw error;
   }
 };

@@ -30,8 +30,8 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 });
 
 // Start server
-const port = config.port;
-app.listen(port, () => {
+const port = Number(config.port);
+app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
 });
 
