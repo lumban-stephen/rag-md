@@ -177,32 +177,6 @@ router.delete('/documents/:topic/:filename', async (req, res) => {
 });
 
 /**
- * Delete multiple documents in parallel
- * @route DELETE /api/s3/documents/bulk
- */
-router.delete('/documents/bulk', async (req, res) => {
-  try {
-    const { documents } = req.body;
-    
-    if (!Array.isArray(documents) || documents.length === 0) {
-      return res.status(400).json({ error: 'Documents array is required' });
-    }
-
-    // Delete all documents in parallel
-    await Promise.all(
-      documents.map(({ topic, filename }) => 
-        s3Service.deleteDocument(topic, filename)
-      )
-    );
-    
-    res.json({ message: 'Documents deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting documents:', error);
-    res.status(500).json({ error: 'Failed to delete documents' });
-  }
-});
-
-/**
  * Get the content of a file
  * Checks both processed and uploads directories
  * @route GET /api/s3/file-content

@@ -317,19 +317,6 @@ export const getIndexStats = async (): Promise<any> => {
 };
 
 /**
- * Delete multiple documents
- */
-export const deleteDocuments = async (documents: { topic: string; filename: string }[]): Promise<boolean> => {
-  try {
-    await api.delete('/api/s3/documents/bulk', { data: { documents } });
-    return true;
-  } catch (error) {
-    console.error('Error deleting documents:', error);
-    throw error;
-  }
-};
-
-/**
  * Get download URL for a file
  */
 export const getDownloadUrl = async (topic: string, filename: string): Promise<string> => {
